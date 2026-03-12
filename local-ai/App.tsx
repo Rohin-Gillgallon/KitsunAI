@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { trpc } from './src/utils/trpc';
 import { runMigrations } from './src/db/migrate';
 import { Settings } from './src/store/settings';
 import { ChatScreen } from './src/screens/ChatScreen';
@@ -8,7 +7,6 @@ import { DownloadScreen } from './src/screens/DownloadScreen';
 import { View } from 'react-native';
 
 const queryClient = new QueryClient();
-const trpcClient = trpc.createClient({ links: [] });
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -28,19 +26,17 @@ export default function App() {
   }, []);
 
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <View style={{ flex: 1 }}>
-          {needsDownload ? (
-            <DownloadScreen onComplete={() => {
-              setNeedsDownload(false);
-              setReady(true);
-            }} />
-          ) : ready ? (
-            <ChatScreen />
-          ) : null}
-        </View>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <QueryClientProvider client={queryClient}>
+      <View style={{ flex: 1 }}>
+        {needsDownload ? (
+          <DownloadScreen onComplete={() => {
+            setNeedsDownload(false);
+            setReady(true);
+          }} />
+        ) : ready ? (
+          <ChatScreen />
+        ) : null}
+      </View>
+    </QueryClientProvider>
   );
 }

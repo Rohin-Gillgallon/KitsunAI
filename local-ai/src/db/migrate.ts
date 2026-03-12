@@ -1,7 +1,12 @@
 import { db } from './index';
 import { sql } from 'drizzle-orm';
 
+let migrated = false;
+
 export async function runMigrations() {
+  if (migrated) return;
+  migrated = true;
+
   db.run(sql`
     CREATE TABLE IF NOT EXISTS conversations (
       id TEXT PRIMARY KEY NOT NULL,

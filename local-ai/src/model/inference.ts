@@ -13,19 +13,25 @@ export async function generateReply(
   try {
     const model = await getModel();
 
-    const context = history
-      .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-      .join('\n');
+    const allButLast = history.slice(0, -1);
+    const lastMessage = history[history.length - 1];
 
-    const prompt = systemPrompt
-      ? `${systemPrompt}\n\n${context}\nAssistant:`
-      : `${context}\nAssistant:`;
+    const context = allButLast
+      .map(m => `<|${m.role}|>\n${m.content}<|end|>\n`)
+      .join('');
+
+    const prompt = `${systemPrompt ? `<|system|>\n${systemPrompt}<|end|>\n` : ''}${context}<|user|>\n${lastMessage.content}<|end|>\n<|assistant|>\n`;
 
     const result = await model.completion(
-      { prompt, n_predict: 512, stop: ['User:', '\n\n'] },
+      {
+        prompt,
+        n_predict: 1024,
+        stop: ['<|end|>', '<|user|>', '<|system|>'],
+      },
       (data) => onToken?.(data.token)
     );
-
+    console.log('Full reply length:', result.text.length);
+    console.log('Full reply end:', result.text.slice(-100));
     return result.text;
   } catch (e) {
     console.error('Inference error:', e);

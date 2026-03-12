@@ -17,10 +17,18 @@ export const MODEL_PATH = `${FileSystem.documentDirectory}phi3-mini-q4.gguf`;
 export async function ensureModelDownloaded(
   onProgress?: (pct: number) => void,
 ): Promise<void> {
+  // TEMPORARY - delete partial file and re-download
+  //await FileSystem.deleteAsync(MODEL_PATH, { idempotent: true });
+  //console.log('Deleted existing file, re-downloading...');
   const info = await FileSystem.getInfoAsync(MODEL_PATH);
+  //console.log('Model info:', JSON.stringify(info));
+
   if (info.exists && typeof info.size === 'number' && info.size > 0) {
+    //console.log('Model already exists, size:', info.size);
     return;
   }
+
+  console.log('Starting download...');
 
   const download = FileSystem.createDownloadResumable(
     MODEL_URL,

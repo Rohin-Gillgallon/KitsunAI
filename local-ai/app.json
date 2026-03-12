@@ -11,6 +11,15 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "plugins": [
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Local AI to use the microphone for voice input",
+          "speechRecognitionPermission": "Allow Local AI to use speech recognition"
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true
     },
@@ -23,7 +32,10 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.niceturret.localai",
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

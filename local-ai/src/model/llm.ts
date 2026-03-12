@@ -23,6 +23,7 @@ export async function getModel(
         use_mlock: false,
         n_ctx: 2048,
         n_threads: 4,
+        n_batch: 512,
         n_gpu_layers: 0,
       });
       return context;
