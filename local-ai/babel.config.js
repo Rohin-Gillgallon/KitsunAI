@@ -3,7 +3,8 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      ['babel-plugin-inline-import', { extensions: ['.sql'] }]
-    ]
+      ['babel-plugin-inline-import', { extensions: ['.sql'] }],
+      'react-native-reanimated/plugin', // Always keep this at the end
+    ],
   };
 };

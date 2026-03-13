@@ -5,6 +5,7 @@ import {
     KeyboardAvoidingView, Platform, Animated,
     FlatList
 } from 'react-native';
+import { useSharedValue, withSpring } from 'react-native-reanimated';
 import { generateReply } from '../model/inference';
 import { db } from '../db';
 import { messages, conversations } from '../db/schema';
@@ -16,6 +17,8 @@ import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-spe
 import { SettingsModal } from './SettingsModal';
 import { ConversationDrawer } from './ConversationDrawer';
 import { getModel } from '../model/llm';
+import { SpeechMode } from './SpeechMode';
+
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -61,12 +64,14 @@ export function ChatScreen() {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [dbReady, setDbReady] = useState(false);
     const [modelReady, setModelReady] = useState(false);
-    const [errorMsg, setErrorMsg] = useState<string | null>(null); // New error state
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [speechModeOpen, setSpeechModeOpen] = useState(false);
 
     const conversationId = useRef<string>('');
     const flatListRef = useRef<FlatList>(null);
     const inputRef = useRef('');
     const pulseAnim = useRef(new Animated.Value(1)).current;
+    const volume = useSharedValue(0);
 
     // Initialization Effect
     useEffect(() => {
@@ -134,6 +139,10 @@ export function ChatScreen() {
     }
 
     async function loadConversation(id: string) {
+        if (!id) {
+            await createNewConversation();
+            return;
+        }
         Speech.stop();
         setSpeaking(false);
         conversationId.current = id;
@@ -151,7 +160,6 @@ export function ChatScreen() {
         setStreamingText('');
         setInput('');
         inputRef.current = '';
-        setErrorMsg(null);
     }
 
     function startPulse() {
@@ -176,9 +184,16 @@ export function ChatScreen() {
         }
     });
 
+    useSpeechRecognitionEvent('volumechange', (event) => {
+        // This translates the mic input into the 'volume' shared value
+        // damping: 20 keeps the movement snappy but smooth
+        volume.value = withSpring(event.value, { damping: 20 });
+    });
+
     useSpeechRecognitionEvent('end', () => {
         setRecording(false);
         stopPulse();
+        volume.value = withSpring(0); // This ensures the dog/HUD stops moving when you're done
         if (inputRef.current.trim()) {
             send();
         }
@@ -188,11 +203,13 @@ export function ChatScreen() {
         if (event.error === 'no-speech') {
             setRecording(false);
             stopPulse();
+            volume.value = withSpring(0); // Reset volume on error too
             return;
         }
         console.error('Speech recognition error:', event.error);
         setRecording(false);
         stopPulse();
+        volume.value = withSpring(0);
     });
 
     async function toggleRecording() {
@@ -321,12 +338,7 @@ export function ChatScreen() {
                             <Text style={styles.newChatText}>⏹ Stop</Text>
                         </TouchableOpacity>
                     )}
-                    <TouchableOpacity
-                        onPress={() => setDrawerOpen(true)}
-                        style={styles.newChatButton}
-                    >
-                        <Text style={styles.newChatText}>☰</Text>
-                    </TouchableOpacity>
+
                     <TouchableOpacity
                         onPress={createNewConversation}
                         disabled={loading}
@@ -335,11 +347,24 @@ export function ChatScreen() {
                         <Text style={styles.newChatText}>+ New</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
+                        onPress={() => setSpeechModeOpen(true)}
+                        style={styles.newChatButton}
+                    >
+                        <Text style={styles.newChatText}>🐶</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
                         onPress={() => setSettingsOpen(true)}
                         style={styles.newChatButton}
                     >
                         <Text style={styles.newChatText}>⚙️</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => setDrawerOpen(true)}
+                        style={styles.newChatButton}
+                    >
+                        <Text style={styles.newChatText}>☰</Text>
+                    </TouchableOpacity>
+
                 </View>
             </View>
 
@@ -430,6 +455,16 @@ export function ChatScreen() {
                 onSelect={loadConversation}
                 onClose={() => setDrawerOpen(false)}
             />
+
+            <SpeechMode
+                visible={speechModeOpen}
+                listening={recording}
+                speaking={speaking}
+                volume={volume}
+                onClose={() => setSpeechModeOpen(false)}
+                onMicPress={toggleRecording}
+            />
+
         </KeyboardAvoidingView>
     );
 }
