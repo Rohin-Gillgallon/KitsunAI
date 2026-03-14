@@ -28,6 +28,14 @@ type Message = {
     content: string;
 };
 
+// Helper to prevent Android text clipping that scales with message length
+const getSafetyBuffer = (content: string, isUser: boolean) => {
+    if (isUser) return '  ';
+    // Add 1 extra newline for every ~250 characters to cover cumulative measurement errors
+    const extraLines = Math.max(2, Math.floor(content.length / 500) + 1);
+    return '\n'.repeat(extraLines) + ' ';
+};
+
 // 1. Extracted and memoized MessageBubble for better FlatList performance
 const MessageBubble = ({ item }: { item: Message }) => {
     const isUser = item.role === 'user';
@@ -48,13 +56,10 @@ const MessageBubble = ({ item }: { item: Message }) => {
                 maxWidth: '90%',
             }}>
                 <Text
-                    style={[
-                        styles.bubbleText,
-                        !isUser && { paddingBottom: 15 } // Vertical buffer for Assistant
-                    ]}
+                    style={styles.bubbleText}
                     textBreakStrategy="simple"
                 >
-                    {item.content}{!isUser ? '\n\n ' : '  '}
+                    {item.content}{getSafetyBuffer(item.content, isUser)}
                 </Text>
             </View>
         </View>
@@ -272,12 +277,50 @@ export function ChatScreen() {
         Speech.stop();
         setSpeaking(false);
 
+        const speechQueueCount = { current: 0 };
+        let sentenceBuffer = '';
+
+        const speakSentence = (text: string) => {
+            const clean = text.trim();
+            if (!clean) return;
+
+            speechQueueCount.current++;
+            Speech.speak(clean, {
+                language: 'en-US',
+                rate: Settings.getVoiceSpeed(),
+                pitch: 1.0,
+                onStart: () => setSpeaking(true),
+                onDone: () => {
+                    speechQueueCount.current--;
+                    if (speechQueueCount.current <= 0) {
+                        setSpeaking(false);
+                    }
+                },
+                onError: () => {
+                    speechQueueCount.current--;
+                    if (speechQueueCount.current <= 0) {
+                        setSpeaking(false);
+                    }
+                },
+            });
+        };
+
         try {
             const fullReply = await generateReply(
                 newMsgs,
                 Settings.getSystemPrompt(),
                 (token) => {
                     setStreamingText(prev => prev + token);
+                    sentenceBuffer += token;
+
+                    // Split by sentence boundaries: . ! ? followed by space, or newlines
+                    const match = sentenceBuffer.match(/[.!?](\s+|$)|(\n+)/);
+                    if (match) {
+                        const index = match.index! + match[0].length;
+                        const sentence = sentenceBuffer.substring(0, index);
+                        sentenceBuffer = sentenceBuffer.substring(index);
+                        speakSentence(sentence);
+                    }
                 }
             );
 
@@ -296,31 +339,14 @@ export function ChatScreen() {
             setMsgs(prev => [...prev, assistantMessage]);
             setStreamingText('');
 
+            // Speak any remaining text in the buffer
+            if (sentenceBuffer.trim()) {
+                speakSentence(sentenceBuffer);
+            }
+
             setTimeout(() => {
                 scrollRef.current?.scrollToEnd({ animated: true });
             }, 150);
-
-            Speech.speak(fullReply, {
-                language: 'en-US',
-                rate: Settings.getVoiceSpeed(),
-                pitch: 1.0,
-                onStart: () => {
-                    console.log('Speech started');
-                    setSpeaking(true);
-                },
-                onDone: () => {
-                    console.log('Speech done');
-                    setSpeaking(false);
-                },
-                onStopped: () => {
-                    console.log('Speech stopped');
-                    setSpeaking(false);
-                },
-                onError: (e) => {
-                    console.error('Speech error:', e);
-                    setSpeaking(false);
-                },
-            });
 
         } catch (e) {
             // 4. Using proper error state instead of ghost messages
@@ -423,11 +449,11 @@ export function ChatScreen() {
                                 paddingVertical: 10,
                                 maxWidth: '90%',
                             }}>
-                                <Text 
-                                    style={[styles.bubbleText, { paddingBottom: 15 }]} 
+                                <Text
+                                    style={styles.bubbleText}
                                     textBreakStrategy="simple"
                                 >
-                                    {streamingText}{'\n\n '}
+                                    {streamingText}{getSafetyBuffer(streamingText, false)}
                                 </Text>
                             </View>
                         </View>
@@ -613,8 +639,7 @@ const styles = StyleSheet.create({
     bubbleText: {
         color: '#fff',
         fontSize: 16,
-        lineHeight: 24,
-        includeFontPadding: false,
+        includeFontPadding: true, // Native padding helps height calculation consistency
     },
     streamingBubble: {
         marginBottom: 0, // Reset since container handles spacing
