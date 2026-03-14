@@ -1,4 +1,4 @@
-import { createMMKV } from 'react-native-mmkv';
+import { createMMKV, useMMKVNumber } from 'react-native-mmkv';
 
 export const storage = createMMKV();
 
@@ -19,4 +19,12 @@ export const Settings = {
 
   getCurrentConversationId: () => storage.getString('currentConversationId') ?? null,
   setCurrentConversationId: (id: string) => storage.set('currentConversationId', id),
+
+  getThemeIndex: () => storage.getNumber('themeIndex') ?? 0,
+  setThemeIndex: (v: number) => storage.set('themeIndex', v),
 };
+
+export function useTheme() {
+  const [themeIndex] = useMMKVNumber('themeIndex', storage);
+  return themeIndex ?? 0;
+}

@@ -8,18 +8,30 @@ import { View } from 'react-native';
 import { ChatScreen } from './src/screens/ChatScreen';
 import { DownloadScreen } from './src/screens/DownloadScreen';
 import { SpeechMode } from './src/screens/SpeechMode';
+import { SettingsModal } from './src/screens/SettingsModal';
+import { getModel } from './src/model/llm';
+import { BootingScreen } from './src/components/BootingScreen';
+import { useTheme } from './src/store/settings';
+import { useAI } from './src/hooks/useAI';
+import { useVoice } from './src/hooks/useVoice';
 
 const queryClient = new QueryClient();
+
+import { INTERFACES } from './src/screens/SpeechMode';
 
 export default function App() {
   const [ready, setReady] = useState(false);
   const [needsDownload, setNeedsDownload] = useState(false);
-
-  // Note: These are redundant if ChatScreen manages them internally,
-  // but keeping them prevents breaking the SpeechMode render below.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [showSpeech, setShowSpeech] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const ai = useAI();
+  const voice = useVoice(ai.speaking, (transcript) => {
+    // Optional: handle interim results if needed in App level
+  });
+  const themeIdx = useTheme();
+
+  const activeAccent = (INTERFACES[themeIdx] || INTERFACES[0]).accent || '#FFFFFF';
 
   useEffect(() => {
     async function init() {
@@ -42,21 +54,34 @@ export default function App() {
             setReady(true);
           }} />
         ) : ready ? (
-          /* 2. PROP FIX: Removed onOpenSpeech since your fixed ChatScreen 
-             function doesn't accept props yet. */
-          <ChatScreen />
+          !ai.modelReady ? (
+            <BootingScreen accent={activeAccent} />
+          ) : (
+            <SpeechMode
+              visible={true} 
+              isHome={true}
+              onOpenTranscript={() => setShowSpeech(true)} 
+              onOpenSettings={() => setSettingsOpen(true)}
+              onSend={(text) => ai.send(text)}
+              speaking={ai.speaking}
+              listening={voice.recording}
+              volume={voice.volume}
+              onMicPress={voice.toggleRecording}
+            />
+          )
         ) : null}
 
-        {/* 3. This SpeechMode is currently a 'ghost' in App.tsx. 
-           Since your fixed ChatScreen already has its own <SpeechMode /> inside its return,
-           you can eventually remove this one to avoid duplicate modals.
-        */}
-        <SpeechMode
-          visible={showSpeech}
-          listening={isListening}
-          speaking={isSpeaking}
-          onClose={() => setShowSpeech(false)}
-          onMicPress={() => setIsListening(!isListening)}
+        {/* ChatScreen is now the 'transcript' accessible from SpeechMode */}
+        {showSpeech && (
+            <ChatScreen 
+                onClose={() => setShowSpeech(false)} 
+                ai={ai}
+            />
+        )}
+
+        <SettingsModal 
+            visible={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
         />
       </View>
     </QueryClientProvider>

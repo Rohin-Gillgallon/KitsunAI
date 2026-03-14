@@ -7,7 +7,7 @@ export async function runMigrations() {
   if (migrated) return;
   migrated = true;
 
-  db.run(sql`
+  await db.run(sql`
     CREATE TABLE IF NOT EXISTS conversations (
       id TEXT PRIMARY KEY NOT NULL,
       title TEXT NOT NULL,
@@ -15,7 +15,7 @@ export async function runMigrations() {
     )
   `);
 
-  db.run(sql`
+  await db.run(sql`
     CREATE TABLE IF NOT EXISTS messages (
       id TEXT PRIMARY KEY NOT NULL,
       conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,

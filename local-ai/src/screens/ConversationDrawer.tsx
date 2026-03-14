@@ -8,7 +8,8 @@ import { conversations, messages } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const DRAWER_WIDTH = SCREEN_WIDTH * 0.80;
+const DRAWER_WIDTH = SCREEN_WIDTH * 0.85;
+const MONO = Platform.OS === 'android' ? 'monospace' : 'Courier';
 
 type Conversation = {
     id: string;
@@ -24,9 +25,16 @@ type Props = {
     onClose: () => void;
 };
 
+import { Settings } from '../store/settings';
+import { Platform } from 'react-native';
+import { INTERFACES } from './SpeechMode';
+
 export function ConversationDrawer({ visible, currentId, onSelect, onClose }: Props) {
     const [convos, setConvos] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const themeIdx = Settings.getThemeIndex();
+    const activeAccent = (INTERFACES[themeIdx] || INTERFACES[0]).accent || '#FFFFFF';
 
     useEffect(() => {
         if (visible) loadConversations();
@@ -64,12 +72,12 @@ export function ConversationDrawer({ visible, currentId, onSelect, onClose }: Pr
 
     async function deleteConversation(id: string) {
         Alert.alert(
-            "Delete Chat",
-            "Are you sure you want to delete this conversation?",
+            "DELETE SESSION",
+            "Are you sure you want to terminate this memory sequence?",
             [
-                { text: "Cancel", style: "cancel" },
+                { text: "CANCEL", style: "cancel" },
                 {
-                    text: "Delete",
+                    text: "TERMINATE",
                     style: "destructive",
                     onPress: async () => {
                         try {
@@ -91,9 +99,9 @@ export function ConversationDrawer({ visible, currentId, onSelect, onClose }: Pr
         const now = new Date();
         const diff = now.getTime() - date.getTime();
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        if (days === 0) return 'Today';
-        if (days === 1) return 'Yesterday';
-        if (days < 7) return `${days} days ago`;
+        if (days === 0) return 'TODAY';
+        if (days === 1) return 'YESTERDAY';
+        if (days < 7) return `${days} DAYS AGO`;
         return date.toLocaleDateString();
     }
 
@@ -106,28 +114,28 @@ export function ConversationDrawer({ visible, currentId, onSelect, onClose }: Pr
         >
             <View style={styles.overlay}>
                 <TouchableOpacity style={styles.backdrop} onPress={onClose} activeOpacity={1} />
-                <View style={styles.drawer}>
-                    <View style={styles.header}>
-                        <Text style={styles.headerTitle}>History</Text>
+                <View style={[styles.drawer, { borderRightColor: activeAccent + '22', borderRightWidth: 1 }]}>
+                    <View style={[styles.header, { borderBottomColor: activeAccent + '22' }]}>
+                        <Text style={[styles.headerTitle, { color: activeAccent, fontFamily: MONO }]}>DATA_LOGS</Text>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <Text style={styles.closeText}>✕</Text>
+                            <Text style={[styles.closeText, { color: activeAccent }]}>✕</Text>
                         </TouchableOpacity>
                     </View>
 
                     {loading ? (
                         <View style={styles.centre}>
-                            <ActivityIndicator size="small" color="#2E75B6" />
+                            <ActivityIndicator size="small" color={activeAccent} />
                         </View>
                     ) : convos.length === 0 ? (
                         <View style={styles.centre}>
-                            <Text style={styles.emptyText}>No conversations yet</Text>
+                            <Text style={[styles.emptyText, { fontFamily: MONO }]}>[NO_DATA_LOGS_FOUND]</Text>
                         </View>
                     ) : (
                         <FlatList
                             data={convos}
                             keyExtractor={(item) => item.id}
                             renderItem={({ item }) => (
-                                <View style={[styles.item, item.id === currentId && styles.itemActive]}>
+                                <View style={[styles.item, item.id === currentId && { backgroundColor: activeAccent + '08' }]}>
                                     <TouchableOpacity
                                         style={styles.itemContent}
                                         onPress={() => {
@@ -135,10 +143,10 @@ export function ConversationDrawer({ visible, currentId, onSelect, onClose }: Pr
                                             onClose();
                                         }}
                                     >
-                                        <Text style={styles.itemTitle} numberOfLines={1}>
+                                        <Text style={[styles.itemTitle, { fontFamily: MONO }]} numberOfLines={1}>
                                             {item.preview}
                                         </Text>
-                                        <Text style={styles.itemDate}>
+                                        <Text style={[styles.itemDate, { fontFamily: MONO, color: '#555' }]}>
                                             {formatDate(item.createdAt)}
                                         </Text>
                                     </TouchableOpacity>
@@ -147,10 +155,11 @@ export function ConversationDrawer({ visible, currentId, onSelect, onClose }: Pr
                                         style={styles.deleteButton}
                                         onPress={() => deleteConversation(item.id)}
                                     >
-                                        <Text style={styles.deleteText}>🗑</Text>
+                                        <Text style={{ color: '#444', fontSize: 14 }}>✕</Text>
                                     </TouchableOpacity>
                                 </View>
                             )}
+                            contentContainerStyle={{ paddingBottom: 40 }}
                         />
                     )}
                 </View>
@@ -166,11 +175,11 @@ const styles = StyleSheet.create({
     },
     backdrop: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.6)',
+        backgroundColor: 'rgba(0,0,0,0.8)',
     },
     drawer: {
         width: DRAWER_WIDTH,
-        backgroundColor: '#171717',
+        backgroundColor: '#050505',
         position: 'absolute',
         left: 0,
         top: 0,
@@ -178,29 +187,27 @@ const styles = StyleSheet.create({
     },
     header: {
         paddingTop: 60,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
+        paddingBottom: 24,
+        paddingHorizontal: 24,
         borderBottomWidth: 1,
-        borderBottomColor: '#333',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
     },
     headerTitle: {
-        color: '#fff',
-        fontSize: 20,
-        fontWeight: 'bold',
+        fontSize: 14,
+        letterSpacing: 4,
+        fontWeight: '200',
     },
     closeButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#333',
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#111',
         justifyContent: 'center',
         alignItems: 'center',
     },
     closeText: {
-        color: '#fff',
         fontSize: 14,
     },
     centre: {
@@ -209,47 +216,39 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     emptyText: {
-        color: '#666',
-        fontSize: 16,
+        color: '#444',
+        fontSize: 10,
+        letterSpacing: 2,
     },
     item: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
+        paddingVertical: 18,
+        paddingHorizontal: 24,
         borderBottomWidth: 1,
-        borderBottomColor: '#222',
-    },
-    itemActive: {
-        backgroundColor: '#222',
+        borderBottomColor: '#111',
     },
     itemContent: {
         flex: 1,
-        marginRight: 8,
+        marginRight: 12,
     },
     itemTitle: {
-        color: '#ececec',
-        fontSize: 15,
-        fontWeight: '500',
-        marginBottom: 4,
+        color: '#BBB',
+        fontSize: 12,
+        letterSpacing: 1,
+        marginBottom: 6,
     },
     itemDate: {
-        color: '#888',
-        fontSize: 12,
+        fontSize: 9,
+        letterSpacing: 1,
     },
     deleteButton: {
         padding: 8,
         borderRadius: 8,
+        backgroundColor: '#0A0A0A',
     },
     deleteText: {
         fontSize: 18,
         opacity: 0.6,
-    },
-    activeDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#2E75B6',
-        marginLeft: 8,
     },
 });

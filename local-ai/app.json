@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "local-ai",
-    "slug": "local-ai",
+    "name": "Fox AI",
+    "slug": "fox-ai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "plugins": [
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Allow Local AI to use the microphone for voice input",
-          "speechRecognitionPermission": "Allow Local AI to use speech recognition"
+          "microphonePermission": "Allow Fox AI to use the microphone for voice input",
+          "speechRecognitionPermission": "Allow Fox AI to use speech recognition"
         }
       ]
     ],
