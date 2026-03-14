@@ -3,7 +3,7 @@ import {
     View, Text, TextInput, TouchableOpacity,
     StyleSheet, ActivityIndicator, Dimensions,
     KeyboardAvoidingView, Platform, Animated,
-    FlatList
+    ScrollView
 } from 'react-native';
 import { useSharedValue, withSpring } from 'react-native-reanimated';
 import { generateReply } from '../model/inference';
@@ -29,29 +29,37 @@ type Message = {
 };
 
 // 1. Extracted and memoized MessageBubble for better FlatList performance
-const MessageBubble = React.memo(({ item }: { item: Message }) => {
+const MessageBubble = ({ item }: { item: Message }) => {
     const isUser = item.role === 'user';
-    const bubbleWidth = SCREEN_WIDTH * 0.75;
 
     return (
-        <View style={[
-            styles.bubbleBase,
-            {
-                maxWidth: bubbleWidth,
-                marginLeft: isUser ? SCREEN_WIDTH - bubbleWidth - 16 : 16,
-                marginRight: isUser ? 16 : 0,
+        <View style={{
+            flexDirection: 'row',
+            width: '100%',
+            justifyContent: isUser ? 'flex-end' : 'flex-start',
+            paddingHorizontal: 12,
+            marginBottom: 8,
+        }}>
+            <View style={{
                 backgroundColor: isUser ? '#2E75B6' : '#222',
-            }
-        ]}>
-            <Text
-                style={[styles.bubbleText, { textAlign: isUser ? 'right' : 'left' }]}
-                numberOfLines={0}
-            >
-                {item.content}
-            </Text>
+                borderRadius: 18,
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                maxWidth: '90%',
+            }}>
+                <Text
+                    style={[
+                        styles.bubbleText,
+                        !isUser && { paddingBottom: 15 } // Vertical buffer for Assistant
+                    ]}
+                    textBreakStrategy="simple"
+                >
+                    {item.content}{!isUser ? '\n\n ' : '  '}
+                </Text>
+            </View>
         </View>
     );
-});
+};
 
 export function ChatScreen() {
     const [msgs, setMsgs] = useState<Message[]>([]);
@@ -68,7 +76,7 @@ export function ChatScreen() {
     const [speechModeOpen, setSpeechModeOpen] = useState(false);
 
     const conversationId = useRef<string>('');
-    const flatListRef = useRef<FlatList>(null);
+    const scrollRef = useRef<ScrollView>(null);
     const inputRef = useRef('');
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const volume = useSharedValue(0);
@@ -238,13 +246,13 @@ export function ChatScreen() {
     }
 
     async function send() {
-        const trimmed = inputRef.current.replace(/[\n\r]/g, ' ').trim();
-        if (!trimmed || loading) return;
+        const text = inputRef.current.replace(/[\n\r]/g, ' ').trim();
+        if (!text || loading) return;
 
         const userMessage: Message = {
             id: uuid.v4() as string,
             role: 'user',
-            content: trimmed,
+            content: text,
         };
 
         setInput('');
@@ -287,16 +295,31 @@ export function ChatScreen() {
 
             setMsgs(prev => [...prev, assistantMessage]);
             setStreamingText('');
-            // 3. Removed redundant setTimeout scroll here. onContentSizeChange handles it.
+
+            setTimeout(() => {
+                scrollRef.current?.scrollToEnd({ animated: true });
+            }, 150);
 
             Speech.speak(fullReply, {
                 language: 'en-US',
                 rate: Settings.getVoiceSpeed(),
                 pitch: 1.0,
-                onStart: () => setSpeaking(true),
-                onDone: () => setSpeaking(false),
-                onStopped: () => setSpeaking(false),
-                onError: () => setSpeaking(false),
+                onStart: () => {
+                    console.log('Speech started');
+                    setSpeaking(true);
+                },
+                onDone: () => {
+                    console.log('Speech done');
+                    setSpeaking(false);
+                },
+                onStopped: () => {
+                    console.log('Speech stopped');
+                    setSpeaking(false);
+                },
+                onError: (e) => {
+                    console.error('Speech error:', e);
+                    setSpeaking(false);
+                },
             });
 
         } catch (e) {
@@ -368,35 +391,52 @@ export function ChatScreen() {
                 </View>
             </View>
 
-            {msgs.length === 0 && !loading ? (
+            {msgs.length === 0 && !loading && !streamingText ? (
                 <View style={styles.emptyState}>
                     <Text style={styles.emptyTitle}>Local AI</Text>
                     <Text style={styles.emptySubtitle}>Running fully on your device.{'\n'}No internet required.</Text>
                 </View>
             ) : (
-                <FlatList
-                    ref={flatListRef}
-                    data={msgs}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => <MessageBubble item={item} />}
+                <ScrollView
+                    ref={scrollRef}
                     style={styles.list}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
-                    onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-                    ListFooterComponent={
-                        streamingText ? (
-                            <View style={styles.streamingBubble}>
-                                <Text style={styles.bubbleText} numberOfLines={0}>
-                                    {streamingText}
+                    onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                >
+                    {msgs.map((m) => (
+                        <MessageBubble key={m.id} item={m} />
+                    ))}
+
+                    {streamingText ? (
+                        <View style={{
+                            flexDirection: 'row',
+                            width: '100%',
+                            justifyContent: 'flex-start',
+                            paddingHorizontal: 12,
+                            marginBottom: 8,
+                        }}>
+                            <View style={{
+                                backgroundColor: '#222',
+                                borderRadius: 18,
+                                paddingHorizontal: 14,
+                                paddingVertical: 10,
+                                maxWidth: '90%',
+                            }}>
+                                <Text 
+                                    style={[styles.bubbleText, { paddingBottom: 15 }]} 
+                                    textBreakStrategy="simple"
+                                >
+                                    {streamingText}{'\n\n '}
                                 </Text>
                             </View>
-                        ) : loading ? (
-                            <View style={styles.loadingFooter}>
-                                <ActivityIndicator size="small" color="#aaa" />
-                            </View>
-                        ) : null
-                    }
-                />
+                        </View>
+                    ) : loading ? (
+                        <View style={styles.loadingFooter}>
+                            <ActivityIndicator size="small" color="#aaa" />
+                        </View>
+                    ) : null}
+                </ScrollView>
             )}
 
             {/* Error Banner */}
@@ -553,23 +593,31 @@ const styles = StyleSheet.create({
         paddingTop: 12,
         paddingBottom: 40,
     },
-    bubbleBase: {
-        marginBottom: 16,
-        padding: 12,
-        borderRadius: 16,
+    bubbleContainer: {
+        width: '100%',
+        paddingHorizontal: 16,
+        marginBottom: 10,
+    },
+    bubbleWrapper: {
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 18,
+        maxWidth: '85%',
+    },
+    userBubble: {
+        backgroundColor: '#2E75B6',
+    },
+    assistantBubble: {
+        backgroundColor: '#222',
     },
     bubbleText: {
         color: '#fff',
         fontSize: 16,
-        lineHeight: 22,
+        lineHeight: 24,
+        includeFontPadding: false,
     },
     streamingBubble: {
-        maxWidth: SCREEN_WIDTH * 0.75,
-        marginLeft: 16,
-        marginBottom: 8,
-        backgroundColor: '#222',
-        padding: 12,
-        borderRadius: 16,
+        marginBottom: 0, // Reset since container handles spacing
     },
     loadingFooter: {
         padding: 16,

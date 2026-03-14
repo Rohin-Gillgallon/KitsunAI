@@ -30,9 +30,10 @@ export async function generateReply(
       },
       (data) => onToken?.(data.token)
     );
-    console.log('Full reply length:', result.text.length);
-    console.log('Full reply end:', result.text.slice(-100));
-    return result.text;
+    const trimmedText = result.text.trim();
+    console.log('Full reply length:', trimmedText.length);
+    console.log('Full reply end:', trimmedText.slice(-100));
+    return trimmedText;
   } catch (e) {
     console.error('Inference error:', e);
     throw e;
