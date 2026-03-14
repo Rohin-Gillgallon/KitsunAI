@@ -64,14 +64,14 @@ export function SettingsModal({ visible, onClose }: Props) {
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                        <Text style={styles.label}>System Prompt</Text>
+                    <View style={styles.content}>
+                        <Text style={[styles.label, { marginTop: 0 }]}>System Prompt</Text>
                         <TextInput
                             style={styles.textArea}
                             value={systemPrompt}
                             onChangeText={setSystemPrompt}
                             multiline
-                            numberOfLines={5}
+                            numberOfLines={3}
                             placeholderTextColor="#666"
                             placeholder="Enter system prompt..."
                         />
@@ -80,7 +80,7 @@ export function SettingsModal({ visible, onClose }: Props) {
                             Voice Speed: {voiceSpeed.toFixed(1)}x
                         </Text>
                         <Slider
-                            style={{ width: '100%', height: 40 }}
+                            style={{ width: '100%', height: 36 }}
                             minimumValue={0.5}
                             maximumValue={2.0}
                             step={0.1}
@@ -96,7 +96,7 @@ export function SettingsModal({ visible, onClose }: Props) {
                         </View>
 
                         <Text style={styles.label}>Visualizer Interface</Text>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={[styles.pickerButton, { borderColor: activeAccent }]}
                             onPress={() => {
                                 setPickerView('collections');
@@ -117,13 +117,13 @@ export function SettingsModal({ visible, onClose }: Props) {
                                 <TouchableOpacity
                                     key={t}
                                     style={[
-                                        styles.threadButton, 
+                                        styles.threadButton,
                                         threadCount === t && { backgroundColor: activeAccent }
                                     ]}
                                     onPress={() => setThreadCount(t)}
                                 >
                                     <Text style={[
-                                        styles.threadText, 
+                                        styles.threadText,
                                         threadCount === t ? { color: '#000' } : { color: '#999' }
                                     ]}>
                                         {t}
@@ -132,15 +132,13 @@ export function SettingsModal({ visible, onClose }: Props) {
                             ))}
                         </View>
                         <Text style={styles.hint}>
-                            Higher = faster responses but more CPU usage. Restart app after changing.
+                            Higher = faster responses but more CPU usage.
                         </Text>
 
                         <TouchableOpacity style={[styles.saveButton, { backgroundColor: activeAccent }]} onPress={save}>
                             <Text style={[styles.saveText, { color: '#000' }]}>Save Configuration</Text>
                         </TouchableOpacity>
-
-                        <View style={{ height: 60 }} />
-                    </ScrollView>
+                    </View>
                 </View>
 
                 <Modal visible={showInterfacePicker} transparent={false} animationType="slide">
@@ -226,7 +224,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 24,
-        paddingBottom: 10,
+        paddingBottom: 0,
     },
     title: {
         fontSize: 14,
@@ -253,18 +251,18 @@ const styles = StyleSheet.create({
         fontSize: 10,
         fontWeight: 'bold',
         letterSpacing: 2,
-        marginBottom: 10,
-        marginTop: 24,
+        marginBottom: 6,
+        marginTop: 18,
         textTransform: 'uppercase',
     },
     textArea: {
         backgroundColor: '#111',
         color: '#fff',
         borderRadius: 16,
-        padding: 16,
+        padding: 12,
         fontSize: 14,
-        lineHeight: 22,
-        minHeight: 100,
+        lineHeight: 20,
+        minHeight: 60,
         textAlignVertical: 'top',
         borderWidth: 1,
         borderColor: '#222',
@@ -314,9 +312,9 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         borderRadius: 30,
-        padding: 18,
+        padding: 16,
         alignItems: 'center',
-        marginTop: 40,
+        marginTop: 24,
     },
     saveText: {
         fontSize: 14,
