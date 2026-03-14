@@ -379,14 +379,6 @@ export function ChatScreen() {
                     {recording && (
                         <Text style={styles.recordingLabel}>Listening...</Text>
                     )}
-                    {speaking && (
-                        <TouchableOpacity
-                            onPress={() => { Speech.stop(); setSpeaking(false); }}
-                            style={styles.newChatButton}
-                        >
-                            <Text style={styles.newChatText}>⏹ Stop</Text>
-                        </TouchableOpacity>
-                    )}
 
                     <TouchableOpacity
                         onPress={createNewConversation}
@@ -492,13 +484,22 @@ export function ChatScreen() {
                 />
 
                 <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                    <TouchableOpacity
-                        style={[styles.micButton, recording && styles.micButtonActive]}
-                        onPress={toggleRecording}
-                        disabled={loading}
-                    >
-                        <Text style={styles.micIcon}>{recording ? '⏹' : '🎤'}</Text>
-                    </TouchableOpacity>
+                    {speaking ? (
+                        <TouchableOpacity
+                            style={styles.stopButton}
+                            onPress={() => { Speech.stop(); setSpeaking(false); }}
+                        >
+                            <View style={styles.stopIcon} />
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            style={[styles.micButton, recording && styles.micButtonActive]}
+                            onPress={toggleRecording}
+                            disabled={loading}
+                        >
+                            <Text style={styles.micIcon}>{recording ? '⏹' : '🎤'}</Text>
+                        </TouchableOpacity>
+                    )}
                 </Animated.View>
 
                 <TouchableOpacity
@@ -560,7 +561,7 @@ const styles = StyleSheet.create({
     header: {
         paddingTop: 56,
         paddingBottom: 16,
-        paddingHorizontal: 20,
+        paddingHorizontal: 20, // Restored to 20
         borderBottomWidth: 1,
         borderBottomColor: '#222',
         flexDirection: 'row',
@@ -575,7 +576,7 @@ const styles = StyleSheet.create({
     headerActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 12, // Restored to 12
     },
     recordingLabel: {
         color: '#ff4444',
@@ -584,13 +585,13 @@ const styles = StyleSheet.create({
     },
     newChatButton: {
         backgroundColor: '#222',
-        paddingHorizontal: 12,
+        paddingHorizontal: 10, // Reduced from 12
         paddingVertical: 6,
         borderRadius: 12,
     },
     newChatText: {
         color: '#fff',
-        fontSize: 14,
+        fontSize: 13, // Slightly smaller fonts for buttons
         fontWeight: '600',
     },
     emptyState: {
@@ -699,6 +700,20 @@ const styles = StyleSheet.create({
     },
     micButtonActive: {
         backgroundColor: '#ff4444',
+    },
+    stopButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#ff4444',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    stopIcon: {
+        width: 14,
+        height: 14,
+        backgroundColor: '#fff',
+        borderRadius: 2,
     },
     sendButton: {
         width: 44,
