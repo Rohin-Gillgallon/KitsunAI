@@ -43,7 +43,7 @@ const MessageBubble = ({ item, accent }: { item: Message; accent: string }) => {
                 styles.bubbleWrapper,
                 isUser ? { backgroundColor: '#111', borderColor: accent + '44', borderWidth: 1 } : { backgroundColor: 'transparent' }
             ]}>
-                {!isUser && <Text style={[styles.roleLabel, { color: accent }]}>FOX_AI_OS v1.0</Text>}
+                {!isUser && <Text style={[styles.roleLabel, { color: accent }]}>KITSUNAI_OS v1.0</Text>}
                 <Text
                     style={[
                         styles.bubbleText,
@@ -128,9 +128,7 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
         }
     });
 
-    useSpeechRecognitionEvent('volumechange', (event) => {
-        volume.value = withSpring(event.value, { damping: 20 });
-    });
+    // Removed stray volumechange listener, handled by useVoice.ts
 
     useSpeechRecognitionEvent('end', () => {
         stopPulse();
@@ -208,7 +206,7 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
 
             {msgs.length === 0 && !loading && !streamingText ? (
                 <View style={styles.emptyState}>
-                    <Text style={[styles.emptyTitle, { color: activeAccent, fontFamily: MONO }]}>FOX AI</Text>
+                    <Text style={[styles.emptyTitle, { color: activeAccent, fontFamily: MONO }]}>KITSUNAI</Text>
                     <Text style={[styles.emptySubtitle, { fontFamily: MONO }]}>
                         [LOCATION: LOCAL_DEVICE]
                     </Text>
@@ -228,7 +226,7 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
                     {streamingText && (
                         <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 16, marginBottom: 12 }}>
                             <View style={styles.bubbleWrapper}>
-                                <Text style={[styles.roleLabel, { color: activeAccent }]}>FOX_AI_OS [STREAMING]</Text>
+                                <Text style={[styles.roleLabel, { color: activeAccent }]}>KITSUNAI_OS [STREAMING]</Text>
                                 <Text style={[styles.bubbleText, { fontFamily: MONO, fontSize: 13, color: '#DDD' }]}>
                                     {streamingText}{getSafetyBuffer(streamingText, false)}
                                 </Text>

@@ -15,9 +15,10 @@ export function useVoice(speaking: boolean, onSpeechResult?: (transcript: string
     });
 
     useSpeechRecognitionEvent('volumechange', (event) => {
-        // Only use real volume when listening
+        // Only use real volume when listening. Apply a noise gate so it fully closes.
         if (recording) {
-            volume.value = withSpring(event.value, { damping: 20 });
+            const rawV = event.value;
+            volume.value = withSpring(rawV < 0.05 ? 0 : rawV, { damping: 20 });
         }
     });
 

@@ -11,6 +11,7 @@ import {
     Canvas, Circle, Group, Line, vec, BlurMask,
     RoundedRect, Path, Skia
 } from '@shopify/react-native-skia';
+import { useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import Animated, {
     useSharedValue, withRepeat, withTiming, withSpring,
     useDerivedValue, Easing, useAnimatedStyle, runOnJS, SharedValue
@@ -278,7 +279,7 @@ export const OrigamiCompanion = ({ mode, sz, volume, variant = 'classic', specie
             if (variant === 'spectral') { mainColor = 0x88DDFF; matProps = { ...matProps, transparent: true, opacity: 0.6 }; }
             else if (variant === 'stealth') { mainColor = 0x6600CC; matProps = { transparent: true, opacity: 0.35, wireframe: true }; }
             else if (variant === 'elite') { mainColor = 0xFF6600; } // Phoenix origami
-            else { mainColor = 0xFF6600; } // Classic N64
+            else { mainColor = 0xd6610b; } // Classic
         } else {
             if (variant === 'spectral') { mainColor = 0x4444FF; }
             else if (variant === 'stealth') { mainColor = 0xFF66AA; }
@@ -287,16 +288,20 @@ export const OrigamiCompanion = ({ mode, sz, volume, variant = 'classic', specie
         }
 
         const headMat = new THREE.MeshStandardMaterial({ ...matProps, color: mainColor });
+        const earMat = new THREE.MeshStandardMaterial({ ...matProps, color: species === 'fox' ? 0xf49c00 : mainColor });
+        const edgeMat = new THREE.LineBasicMaterial({ color: 0x221100, linewidth: 2 });
+
         const headGroup = new THREE.Group();
+        headGroup.position.y = -1.6; // Shift to center the larger head
         group.add(headGroup);
 
         // Shadow fox: add solid dark under-mesh + wireframe overlay
-        if (species === 'fox' && variant === 'stealth') {
+        if (species === 'fox' && variant === 'stealth' && false) { // DISABLED per user request
             const solidMat = new THREE.MeshStandardMaterial({ color: 0x220044, flatShading: true, metalness: 0, roughness: 0.9 });
-            const solidVerts = new Float32Array([0,-2.5,2.5, 0,0,1.5, -2,0.5,0.5, 2,0.5,0.5, -1.2,2.2,0, 1.2,2.2,0, 0,0,-1.5]);
+            const solidVerts = new Float32Array([0, -2.5, 2.5, 0, 0, 1.5, -2, 0.5, 0.5, 2, 0.5, 0.5, -1.2, 2.2, 0, 1.2, 2.2, 0, 0, 0, -1.5]);
             const sGeo = new THREE.BufferGeometry();
             sGeo.setAttribute('position', new THREE.BufferAttribute(solidVerts, 3));
-            sGeo.setIndex([1,2,0, 1,0,3, 2,4,1, 1,4,5, 1,5,3, 4,6,5, 2,6,4, 3,5,6, 2,0,6, 0,3,6]);
+            sGeo.setIndex([1, 2, 0, 1, 0, 3, 2, 4, 1, 1, 4, 5, 1, 5, 3, 4, 6, 5, 2, 6, 4, 3, 5, 6, 2, 0, 6, 0, 3, 6]);
             sGeo.computeVertexNormals();
             headGroup.add(new THREE.Mesh(sGeo, solidMat));
         }
@@ -312,107 +317,201 @@ export const OrigamiCompanion = ({ mode, sz, volume, variant = 'classic', specie
             // PHOENIX: Origami paper fox — flat kite shape, split ears, pointed snout
             const v = new Float32Array([
                 // Left face half (folded slightly)
-                0, 1.5, 0.2,  -2.2, 0, 0,  0, -3, 0.6,
+                0, 1.5, 0.2, -2.2, 0, 0, 0, -3, 0.6,
                 // Right face half
-                0, 1.5, 0.2,  2.2, 0, 0,   0, -3, 0.6,
+                0, 1.5, 0.2, 2.2, 0, 0, 0, -3, 0.6,
                 // Left ear
                 -0.3, 1.5, 0.1, -1.5, 3.8, 0, -2.2, 0, 0,
                 // Right ear
-                0.3, 1.5, 0.1,  1.5, 3.8, 0,  2.2, 0, 0,
+                0.3, 1.5, 0.1, 1.5, 3.8, 0, 2.2, 0, 0,
                 // Nose tip (black)
-                -0.4, -2.6, 0.7,  0.4, -2.6, 0.7,  0, -3, 0.6,
+                -0.4, -2.6, 0.7, 0.4, -2.6, 0.7, 0, -3, 0.6,
             ]);
             headGeo.setAttribute('position', new THREE.BufferAttribute(v, 3));
-            headGeo.setIndex([0,1,2, 3,5,4, 6,7,8, 9,11,10, 12,13,14]);
+            headGeo.setIndex([0, 1, 2, 3, 5, 4, 6, 7, 8, 9, 11, 10, 12, 13, 14]);
+            headGeo.computeVertexNormals();
+            headGroup.add(new THREE.Mesh(headGeo, new THREE.MeshStandardMaterial({ color: 0xFF6600, flatShading: true, metalness: 0, roughness: 0.9, side: THREE.DoubleSide })));
         } else if (species === 'fox') {
-            // N64-style chunky fox head
-            const vertices = new Float32Array([
-                0, -2.5, 2.5,  0, 0, 1.5,  -2, 0.5, 0.5,  2, 0.5, 0.5,  -1.2, 2.2, 0,  1.2, 2.2, 0,  0, 0, -1.5
-            ]);
-            headGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-            headGeo.setIndex([1,2,0, 1,0,3, 2,4,1, 1,4,5, 1,5,3, 4,6,5, 2,6,4, 3,5,6, 2,0,6, 0,3,6]);
+            const mouthMat = new THREE.MeshBasicMaterial({ color: 0x1a0f0a });
+
+            // Load geometry JSON asynchronously to not block the UI boot screen thread
+            const foxGeoJSON = require('../../assets/foxGeometry.json');
+
+            // Build geometries
+            const headGeoPart = new THREE.BufferGeometry();
+            headGeoPart.setAttribute('position', new THREE.BufferAttribute(new Float32Array(foxGeoJSON.head), 3));
+            headGeoPart.computeVertexNormals();
+
+            const jawGeo = new THREE.BufferGeometry();
+            jawGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(foxGeoJSON.jaw), 3));
+            jawGeo.computeVertexNormals();
+
+            const lEarGeo = new THREE.BufferGeometry();
+            lEarGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(foxGeoJSON.leftear), 3));
+            lEarGeo.computeVertexNormals();
+
+            const rEarGeo = new THREE.BufferGeometry();
+            rEarGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(foxGeoJSON.rightear), 3));
+            rEarGeo.computeVertexNormals();
+
+            const usedMat = variant === 'stealth'
+                ? [new THREE.MeshStandardMaterial({ color: 0x220044, flatShading: true, roughness: 0.9 }), mouthMat]
+                : headMat;
+
+            const headMesh = new THREE.Mesh(headGeoPart, usedMat);
+            const jawMesh = new THREE.Mesh(jawGeo, usedMat);
+            const lEarMesh = new THREE.Mesh(lEarGeo, earMat); // Brighter ears
+            const rEarMesh = new THREE.Mesh(rEarGeo, earMat); // Brighter ears
+
+            const upperHead = new THREE.Group();
+            upperHead.add(headMesh, lEarMesh, rEarMesh);
+            headGroup.add(upperHead, jawMesh);
+
+            // Edges for contours
+            [headGeoPart, jawGeo, lEarGeo, rEarGeo].forEach(geo => {
+                const edges = new THREE.EdgesGeometry(geo);
+                const line = new THREE.LineSegments(edges, edgeMat);
+                // Lines for upper head parts go to upperHead, jaw lines stand alone
+                if (geo === jawGeo) headGroup.add(line);
+                else upperHead.add(line);
+            });
+
+            (headGroup as any).jawMesh = jawMesh;
+            (headGroup as any).upperHead = upperHead;
+            (headGroup as any).lEarMesh = lEarMesh;
+            (headGroup as any).rEarMesh = rEarMesh;
         } else {
             // Spaniel head (all variants share geometry, differ by material/extras)
             if (variant !== 'spectral') {
                 const muzMat = new THREE.MeshStandardMaterial({ ...matProps, color: 0xFFFFFF, opacity: 0.7, transparent: true });
                 const muzGeo = new THREE.BufferGeometry();
-                muzGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1.2,-1,1.3, 1.2,-1,1.3, 0,-2.8,1.6]), 3));
-                muzGeo.setIndex([0,1,2]);
+                muzGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1.2, -1, 1.3, 1.2, -1, 1.3, 0, -2.8, 1.6]), 3));
+                muzGeo.setIndex([0, 1, 2]);
                 headGroup.add(new THREE.Mesh(muzGeo, muzMat));
             }
             const vertices = new Float32Array([
-                -2,2.5,0.5, 2,2.5,0.5, 3.5,0,0.5, 0,-3.8,1.2, -3.5,0,0.5,
-                -1.5,2.5,-1, 1.5,2.5,-1, 2.5,0,-1, 0,-2.5,-1, -2.5,0,-1
+                -2, 2.5, 0.5, 2, 2.5, 0.5, 3.5, 0, 0.5, 0, -3.8, 1.2, -3.5, 0, 0.5,
+                -1.5, 2.5, -1, 1.5, 2.5, -1, 2.5, 0, -1, 0, -2.5, -1, -2.5, 0, -1
             ]);
             headGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-            headGeo.setIndex([0,1,2, 0,2,3, 0,3,4, 5,7,6, 5,8,7, 5,9,8, 0,5,6, 0,6,1, 1,6,7, 1,7,2, 2,7,8, 2,8,3, 3,8,9, 3,9,4, 4,9,5, 4,5,0]);
+            headGeo.setIndex([0, 1, 2, 0, 2, 3, 0, 3, 4, 5, 7, 6, 5, 8, 7, 5, 9, 8, 0, 5, 6, 0, 6, 1, 1, 6, 7, 1, 7, 2, 2, 7, 8, 2, 8, 3, 3, 8, 9, 3, 9, 4, 4, 9, 5, 4, 5, 0]);
+            headGeo.computeVertexNormals();
+            headGroup.add(new THREE.Mesh(headGeo, headMat));
         }
-        headGeo.computeVertexNormals();
-        headGroup.add(new THREE.Mesh(headGeo, variant === 'elite' && species === 'fox' ? new THREE.MeshStandardMaterial({ color: 0xFF6600, flatShading: true, metalness: 0, roughness: 0.9, side: THREE.DoubleSide }) : headMat));
 
         // Phoenix nose tip
         if (species === 'fox' && variant === 'elite') {
             const noseGeo = new THREE.BufferGeometry();
-            noseGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-0.4,-2.6,0.7, 0.4,-2.6,0.7, 0,-3,0.6]), 3));
-            noseGeo.setIndex([0,1,2]);
-            headGroup.add(new THREE.Mesh(noseGeo, new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide })));
+            noseGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-0.4, -2.6, 0.7, 0.4, -2.6, 0.7, 0, -3, 0.6]), 3));
+            noseGeo.setIndex([0, 1, 2]);
+            headGroup.add(new THREE.Mesh(noseGeo, new THREE.MeshBasicMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide })));
         }
 
         // Eyes
-        const eyeColor = variant === 'stealth' ? 0xAA00FF : variant === 'spectral' ? 0x88DDFF : 0x000000;
+        const eyeColor = variant === 'stealth' ? 0xAA00FF : variant === 'spectral' ? 0x88DDFF : 0xFFFFFF;
         if (variant === 'elite' && species === 'fox') {
             // Origami sleepy line eyes (thin flat rectangles)
-            [-0.6, 0.6].forEach(x => {
-                const eyeMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.1), new THREE.MeshBasicMaterial({ color: 0x222222 }));
-                eyeMesh.position.set(x, 0.3, 0.5);
+            [-0.8, 0.8].forEach(x => {
+                const eyeMesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.04, 0.1), new THREE.MeshBasicMaterial({ color: 0xFFFFFF }));
+                eyeMesh.position.set(x, 1.2, 1.8); // Slightly further forward
                 eyeMesh.rotation.z = x > 0 ? -0.15 : 0.15;
-                headGroup.add(eyeMesh);
+                if (species === 'fox' && (headGroup as any).upperHead) {
+                    (headGroup as any).upperHead.add(eyeMesh);
+                } else {
+                    headGroup.add(eyeMesh);
+                }
             });
         } else {
-            [-0.7, 0.7].forEach(x => {
-                const eye = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.1), new THREE.MeshBasicMaterial({ color: eyeColor }));
-                eye.position.set(x, species === 'fox' ? 0.7 : 0.6, 0.6);
-                headGroup.add(eye);
+            [-0.8, 0.8].forEach(x => {
+                if (species === 'fox' && variant !== 'elite') {
+                    // Smiling geometric eyes (^ ^)
+                    const eyeMat = new THREE.MeshStandardMaterial({
+                        color: variant === 'stealth' ? 0x220044 : 0x1a0f0a,
+                        roughness: 0.9,
+                        metalness: 0
+                    });
+
+                    const eyeGroup = new THREE.Group();
+                    const segmentGeo = new THREE.BoxGeometry(0.12, 0.015, 0.04);
+                    
+                    const leftSeg = new THREE.Mesh(segmentGeo, eyeMat);
+                    leftSeg.position.set(-0.05, 0.02, 0);
+                    leftSeg.rotation.z = 0.5;
+
+                    const rightSeg = new THREE.Mesh(segmentGeo, eyeMat);
+                    rightSeg.position.set(0.05, 0.02, 0);
+                    rightSeg.rotation.z = -0.5;
+
+                    eyeGroup.add(leftSeg, rightSeg);
+                    
+                    // Move eyes slightly closer together (was x * 0.35 + 0.1)
+                    eyeGroup.position.set(x * 0.28 + 0.1, 1.62, -0.6); 
+                    eyeGroup.rotation.x = Math.PI / 5;
+                    
+                    if ((headGroup as any).upperHead) {
+                        (headGroup as any).upperHead.add(eyeGroup);
+                    } else {
+                        headGroup.add(eyeGroup);
+                    }
+                } else if (species === 'fox') {
+                    // elite/spaniel logic remains if needed, but handled specifically for fox above
+                } else {
+                    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.1), new THREE.MeshBasicMaterial({ color: eyeColor }));
+                    eye.position.set(x, 0.6, 0.6);
+                    headGroup.add(eye);
+                }
             });
         }
 
+        let animNose: THREE.Mesh | null = null;
         // Nose (non-phoenix)
         if (!(species === 'fox' && variant === 'elite')) {
-            const nose = new THREE.Mesh(new THREE.IcosahedronGeometry(0.25, 1), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-            nose.position.set(0, species === 'fox' ? -2.3 : -1.3, 2.5);
-            headGroup.add(nose);
+            const noseSize = species === 'fox' ? 0.16 : 0.35; // Slightly larger for "boopable" look
+            // Shaper geometric nose
+            const noseGeo = species === 'fox' ? new THREE.TetrahedronGeometry(noseSize) : new THREE.IcosahedronGeometry(noseSize, 1);
+            const noseMat = new THREE.MeshStandardMaterial({
+                color: species === 'fox' ? 0x1a0f0a : 0x888888,
+                roughness: 0.9,
+                metalness: 0
+            });
+            const nose = new THREE.Mesh(noseGeo, noseMat);
+            if (species === 'fox') {
+                nose.position.set(0.1, 1.34, -0.94); // Embedded deeper
+                nose.rotation.x = -Math.PI / 4;
+                nose.rotation.y = Math.PI / 4;
+                animNose = nose;
+            } else {
+                nose.position.set(0, -1.3, 2.5);
+            }
+            if (species === 'fox' && (headGroup as any).upperHead) {
+                (headGroup as any).upperHead.add(nose);
+            } else {
+                headGroup.add(nose);
+            }
         }
 
         // Ears
         const makeEar = (x: number, rotZ: number) => {
-            let eGeo;
-            if (species === 'fox') {
-                eGeo = new THREE.ConeGeometry(0.8, 3, 3);
-            } else {
-                const eVerts = new Float32Array([0,0,0, -1.8,-4,0.5, 1.0,-3,0.5]);
-                eGeo = new THREE.BufferGeometry();
-                eGeo.setAttribute('position', new THREE.BufferAttribute(eVerts, 3));
-                eGeo.setIndex([0,1,2, 0,2,1]);
-            }
+            const eVerts = new Float32Array([0, 0, 0, -1.8, -4, 0.5, 1.0, -3, 0.5]);
+            const eGeo = new THREE.BufferGeometry();
+            eGeo.setAttribute('position', new THREE.BufferAttribute(eVerts, 3));
+            eGeo.setIndex([0, 1, 2, 0, 2, 1]);
             const eMesh = new THREE.Mesh(eGeo, headMat);
-            if (species === 'fox') {
-                eMesh.position.set(x, 2.5, 0);
-                eMesh.rotation.z = rotZ;
-            } else {
-                eMesh.position.set(x, 2.5, 0);
-                eMesh.rotation.y = x > 0 ? 0.2 : -0.2;
-                eMesh.scale.x = x > 0 ? -1 : 1;
-            }
+
+            eMesh.position.set(x, 2.5, 0);
+            eMesh.rotation.y = x > 0 ? 0.2 : -0.2;
+            eMesh.scale.x = x > 0 ? -1 : 1;
+
             headGroup.add(eMesh);
             return eMesh;
         };
-        // Phoenix doesn't use cone ears — ears are built into geometry
-        const lEar = variant === 'elite' && species === 'fox' ? null : makeEar(-1.2, species === 'fox' ? 0.2 : 0.5);
-        const rEar = variant === 'elite' && species === 'fox' ? null : makeEar(1.2, species === 'fox' ? -0.2 : -0.5);
+        // The new obj fox already has its own ears, so we only need to generate ears for spaniel
+        const lEar = species === 'spaniel' ? makeEar(-1.2, 0.5) : null;
+        const rEar = species === 'spaniel' ? makeEar(1.2, -0.5) : null;
 
         // Midnight spaniel: add constellation point lights
         if (species === 'spaniel' && variant === 'spectral') {
-            [[-1,1,0.6],[1,1,0.6],[0,-2,1.3],[-2,0,0.5],[2,0,0.5],[0,2.5,0.5]].forEach(p => {
+            [[-1, 1, 0.6], [1, 1, 0.6], [0, -2, 1.3], [-2, 0, 0.5], [2, 0, 0.5], [0, 2.5, 0.5]].forEach(p => {
                 const dot = new THREE.Mesh(new THREE.SphereGeometry(0.08), new THREE.MeshBasicMaterial({ color: 0xFFFFFF }));
                 dot.position.set(p[0], p[1], p[2]);
                 headGroup.add(dot);
@@ -423,26 +522,51 @@ export const OrigamiCompanion = ({ mode, sz, volume, variant = 'classic', specie
             requestAnimationFrame(render);
             const v = volume.value;
             const t = Date.now() * 0.001;
-            const s = 1.2 + v * 0.2;
+
+            const isJSONFox = species === 'fox' && variant !== 'elite';
+            const baseScale = isJSONFox ? 5.5 : 1.2;
+            const s = baseScale + v * 0.2;
+
             group.scale.set(s, s, s);
             group.position.y = Math.sin(t * 2) * 0.3;
-            group.rotation.y = Math.sin(t * 0.5) * 0.2;
+            const rotationOffset = isJSONFox ? Math.PI : 0;
+            group.rotation.y = rotationOffset + Math.sin(t * 0.5) * 0.2;
+
+            // Add subtle talking bob to the head group
+            if (v > 0.05) {
+                headGroup.rotation.x = Math.sin(t * 12) * v * 0.05 + v * 0.1;
+                headGroup.rotation.z = Math.cos(t * 10) * v * 0.03;
+            } else {
+                headGroup.rotation.x = 0;
+                headGroup.rotation.z = 0;
+            }
 
             if (species === 'fox' && variant === 'elite') {
                 // Phoenix: subtle paper flutter
                 headGroup.rotation.z = Math.sin(t * 3) * v * 0.08;
-                headGroup.rotation.x = Math.sin(t * 2) * v * 0.05;
+                headGroup.rotation.x = Math.sin(t * 2) * v * 0.05 + v * 0.15;
             } else if (species === 'fox' && variant === 'stealth') {
                 // Shadow: phase in/out
-                headMat.opacity = 0.2 + v * 0.3 + Math.sin(t * 4) * 0.1;
-                if (lEar) lEar.rotation.z = 0.2 + Math.sin(t * 8) * v * 0.3;
-                if (rEar) rEar.rotation.z = -0.2 - Math.sin(t * 8) * v * 0.3;
+                headGroup.rotation.x = v * 0.15;
+                if ((headGroup as any).jawMesh) {
+                    (headGroup as any).jawMesh.position.y = -v * 0.4;
+                    (headGroup as any).jawMesh.rotation.x = -v * 0.25;
+                }
             } else if (species === 'spaniel') {
                 if (lEar) lEar.rotation.x = (Math.PI / 6) + Math.sin(t * 6) * v * 0.6;
                 if (rEar) rEar.rotation.x = (Math.PI / 6) + Math.sin(t * 6) * v * 0.6;
             } else {
-                if (lEar) lEar.rotation.z = 0.2 + Math.sin(t * 10) * v * 0.2;
-                if (rEar) rEar.rotation.z = -0.2 - Math.sin(t * 10) * v * 0.2;
+                headGroup.rotation.x = v * 0.15;
+                if ((headGroup as any).jawMesh) {
+                    (headGroup as any).jawMesh.position.y = -v * 0.4;
+                    (headGroup as any).jawMesh.rotation.x = -v * 0.25;
+                }
+                if ((headGroup as any).lEarMesh) {
+                    (headGroup as any).lEarMesh.rotation.z = Math.sin(t * 6) * v * 0.06;
+                }
+                if ((headGroup as any).rEarMesh) {
+                    (headGroup as any).rEarMesh.rotation.z = -Math.sin(t * 6) * v * 0.06;
+                }
             }
             renderer.render(scene, camera);
             gl.endFrameEXP();
@@ -499,18 +623,18 @@ export const PrismBars = ({ mode, sz, volume, variant = 'classic', isList }: Vis
 export const Chronos = ({ mode, sz, volume, variant = 'classic', isList }: VisualizerProps & { isList?: boolean }) => {
     const cx = sz / 2;
     const time = useSharedValue(0);
-    useEffect(() => { 
+    useEffect(() => {
         if (!isList) {
-            time.value = withRepeat(withTiming(100, { duration: 50000, easing: Easing.linear }), -1, false); 
+            time.value = withRepeat(withTiming(100, { duration: 50000, easing: Easing.linear }), -1, false);
         }
     }, [isList]);
 
     // Variant-specific entity configs: different counts, orbit shapes, speeds
     const configs = {
-        classic:  { color: '#FFD700', glow: '#FFAA00', count: 8,  rBase: 0.04, orbits: [0.3,0.25,0.35,0.2,0.4,0.15,0.28,0.33], speeds: [1.2,0.7,0.9,1.5,0.6,1.1,0.8,1.3] },
-        spectral: { color: '#00BBFF', glow: '#0066CC', count: 12, rBase: 0.025, orbits: [0.2,0.15,0.25,0.3,0.18,0.22,0.28,0.12,0.35,0.2,0.15,0.25], speeds: [0.4,0.6,0.3,0.5,0.7,0.35,0.45,0.55,0.3,0.65,0.5,0.4] },
-        stealth:  { color: '#FF8800', glow: '#CC5500', count: 5,  rBase: 0.07, orbits: [0.25,0.3,0.2,0.35,0.28], speeds: [0.5,0.4,0.6,0.35,0.45] },
-        elite:    { color: '#AA44FF', glow: '#6600CC', count: 6,  rBase: 0.05, orbits: [0.3,0.25,0.35,0.2,0.4,0.15], speeds: [1.8,1.5,2.0,1.2,1.6,1.4] },
+        classic: { color: '#FFD700', glow: '#FFAA00', count: 8, rBase: 0.04, orbits: [0.3, 0.25, 0.35, 0.2, 0.4, 0.15, 0.28, 0.33], speeds: [1.2, 0.7, 0.9, 1.5, 0.6, 1.1, 0.8, 1.3] },
+        spectral: { color: '#00BBFF', glow: '#0066CC', count: 12, rBase: 0.025, orbits: [0.2, 0.15, 0.25, 0.3, 0.18, 0.22, 0.28, 0.12, 0.35, 0.2, 0.15, 0.25], speeds: [0.4, 0.6, 0.3, 0.5, 0.7, 0.35, 0.45, 0.55, 0.3, 0.65, 0.5, 0.4] },
+        stealth: { color: '#FF8800', glow: '#CC5500', count: 5, rBase: 0.07, orbits: [0.25, 0.3, 0.2, 0.35, 0.28], speeds: [0.5, 0.4, 0.6, 0.35, 0.45] },
+        elite: { color: '#AA44FF', glow: '#6600CC', count: 6, rBase: 0.05, orbits: [0.3, 0.25, 0.35, 0.2, 0.4, 0.15], speeds: [1.8, 1.5, 2.0, 1.2, 1.6, 1.4] },
     };
     const cfg = configs[variant] || configs.classic;
     const entities = [...Array(cfg.count)].map((_, i) => ({
@@ -574,10 +698,10 @@ export const Jellyfish = ({ mode, sz, volume, variant = 'classic', isList }: Vis
         scene.add(group);
 
         const configs = {
-            classic:  { c: 0x00FFAA, bellDots: 32, tents: 10, tentDots: 25, tentLen: 0.4, size: 0.08, op: 0.8 }, // BIOLUME
-            spectral: { c: 0x4488FF, bellDots: 24, tents: 8,  tentDots: 15, tentLen: 0.3, size: 0.12, op: 0.9 }, // ELECTRIC
-            stealth:  { c: 0xFF22AA, bellDots: 16, tents: 6,  tentDots: 40, tentLen: 0.6, size: 0.06, op: 0.7 }, // DEEPSEA
-            elite:    { c: 0xFFFFFF, bellDots: 64, tents: 12, tentDots: 30, tentLen: 0.5, size: 0.05, op: 0.3 }, // GHOST
+            classic: { c: 0x00FFAA, bellDots: 32, tents: 10, tentDots: 25, tentLen: 0.4, size: 0.08, op: 0.8 }, // BIOLUME
+            spectral: { c: 0x4488FF, bellDots: 24, tents: 8, tentDots: 15, tentLen: 0.3, size: 0.12, op: 0.9 }, // ELECTRIC
+            stealth: { c: 0xFF22AA, bellDots: 16, tents: 6, tentDots: 40, tentLen: 0.6, size: 0.06, op: 0.7 }, // DEEPSEA
+            elite: { c: 0xFFFFFF, bellDots: 64, tents: 12, tentDots: 30, tentLen: 0.5, size: 0.05, op: 0.3 }, // GHOST
         };
         const cfg = configs[variant] || configs.classic;
 
@@ -608,10 +732,10 @@ export const Jellyfish = ({ mode, sz, volume, variant = 'classic', isList }: Vis
             requestAnimationFrame(render);
             const v = volume.value;
             const t = Date.now() * 0.001;
-            
+
             // Base breathing + volume pulse
             let pulse = 1 + Math.sin(t * 3 + v * 5) * 0.15;
-            
+
             if (variant === 'stealth') {
                 pulse = 1 + Math.sin(t * 1.5) * 0.1 + v * 0.4; // Deep breathing, bigger snaps
             } else if (variant === 'spectral') {
@@ -626,7 +750,7 @@ export const Jellyfish = ({ mode, sz, volume, variant = 'classic', isList }: Vis
             }
 
             bell.scale.set(pulse, pulse, pulse);
-            
+
             tentacles.forEach(({ geometry }, i) => {
                 const positions = geometry.attributes.position.array as Float32Array;
                 const angle = (i / cfg.tents) * Math.PI * 2 + (variant === 'spectral' ? Math.sin(t * 10) * v * 0.2 : 0);
@@ -665,9 +789,9 @@ export const Jellyfish = ({ mode, sz, volume, variant = 'classic', isList }: Vis
 export const Nebula = ({ mode, sz, volume, variant = 'classic', isList }: VisualizerProps & { isList?: boolean }) => {
     const cx = sz / 2;
     const time = useSharedValue(0);
-    useEffect(() => { 
+    useEffect(() => {
         if (!isList) {
-            time.value = withRepeat(withTiming(100, { duration: 50000, easing: Easing.linear }), -1, false); 
+            time.value = withRepeat(withTiming(100, { duration: 50000, easing: Easing.linear }), -1, false);
         }
     }, [isList]);
 
@@ -678,7 +802,7 @@ export const Nebula = ({ mode, sz, volume, variant = 'classic', isList }: Visual
                 <Circle cx={cx} cy={cx} r={useDerivedValue(() => isList ? sz * 0.35 : sz * 0.35 + volume.value * sz * 0.1)} color="#FF2200" opacity={useDerivedValue(() => isList ? 0.25 : 0.2 + volume.value * 0.15)}><BlurMask blur={30} style="normal" /></Circle>
                 <Circle cx={cx * 0.8} cy={cx * 1.1} r={useDerivedValue(() => isList ? sz * 0.2 : sz * 0.2 + volume.value * sz * 0.08)} color="#FF6600" opacity={0.15}><BlurMask blur={25} style="normal" /></Circle>
                 <RoundedRect x={cx - 8} y={cx * 0.5} width={16} height={sz * 0.5} r={8} color="#000" opacity={useDerivedValue(() => isList ? 0.6 : 0.5 + volume.value * 0.2)} />
-                {!isList && [0,1,2,3].map(i => <Circle key={i} cx={cx * (0.5 + i * 0.35)} cy={cx * (0.3 + i * 0.2)} r={useDerivedValue(() => 1 + volume.value * 2)} color="#FFAA44" opacity={useDerivedValue(() => 0.3 + Math.sin(time.value + i) * 0.3)} />)}
+                {!isList && [0, 1, 2, 3].map(i => <Circle key={i} cx={cx * (0.5 + i * 0.35)} cy={cx * (0.3 + i * 0.2)} r={useDerivedValue(() => 1 + volume.value * 2)} color="#FFAA44" opacity={useDerivedValue(() => 0.3 + Math.sin(time.value + i) * 0.3)} />)}
             </Canvas>
         );
     }
@@ -725,7 +849,7 @@ export const Nebula = ({ mode, sz, volume, variant = 'classic', isList }: Visual
                     <BlurMask blur={25} style="normal" />
                 </Circle>
             ))}
-            {!isList && [0,1,2,3,4,5].map(i => {
+            {!isList && [0, 1, 2, 3, 4, 5].map(i => {
                 const sx = cx + Math.cos(i * 1.1) * sz * 0.25;
                 const sy = cx + Math.sin(i * 1.7) * sz * 0.2;
                 return <Circle key={`s${i}`} cx={sx} cy={sy} r={useDerivedValue(() => 1 + volume.value * 1.5)} color="#FFF" opacity={useDerivedValue(() => 0.3 + Math.sin(time.value * 2 + i * 1.5) * 0.4)} />;
@@ -739,76 +863,76 @@ export const Nebula = ({ mode, sz, volume, variant = 'classic', isList }: Visual
 // ─────────────────────────────────────────────────────────────────────────────
 
 const types = [
-    { 
-        name: 'FOX', Comp: OrigamiCompanion, spec: 'fox',
+    {
+        name: 'KITSUNE', Comp: OrigamiCompanion, spec: 'fox',
         variants: [
-            { vName: 'CLASSIC', v: 'classic', acc: '#FF6600', bg: '#080600' },
-            { vName: 'ARCTIC', v: 'spectral', acc: '#00FFFF', bg: '#000810' },
-            { vName: 'SHADOW', v: 'stealth', acc: '#8800FF', bg: '#05000A' },
-            { vName: 'PHOENIX', v: 'elite', acc: '#FF0033', bg: '#0A0000' },
+            { vName: 'CLASSIC', v: 'classic', acc: '#d6610b', bg: '#000000' },
+            { vName: 'ARCTIC', v: 'spectral', acc: '#00FFFF', bg: '#000000' },
+            { vName: 'SHADOW', v: 'stealth', acc: '#8800FF', bg: '#000000' },
+            { vName: 'PHOENIX', v: 'elite', acc: '#FF0033', bg: '#000000' },
         ]
     },
-    { 
+    {
         name: 'SPANIEL', Comp: OrigamiCompanion, spec: 'spaniel',
         variants: [
-            { vName: 'ORIGAMI', v: 'classic', acc: '#00CCFF', bg: '#080810' },
-            { vName: 'MIDNIGHT', v: 'spectral', acc: '#4444FF', bg: '#00000A' },
-            { vName: 'SAKURA', v: 'stealth', acc: '#FF66AA', bg: '#0A0005' },
-            { vName: 'FOREST', v: 'elite', acc: '#22AA22', bg: '#000A00' },
+            { vName: 'ORIGAMI', v: 'classic', acc: '#00CCFF', bg: '#000000' },
+            { vName: 'MIDNIGHT', v: 'spectral', acc: '#4444FF', bg: '#000000' },
+            { vName: 'SAKURA', v: 'stealth', acc: '#FF66AA', bg: '#000000' },
+            { vName: 'FOREST', v: 'elite', acc: '#22AA22', bg: '#000000' },
         ]
     },
-    { 
+    {
         name: 'VOID', Comp: TheVoid,
         variants: [
             { vName: 'EVENT HORIZON', v: 'classic', acc: '#FFFFFF', bg: '#000000' },
-            { vName: 'SINGULARITY', v: 'spectral', acc: '#EE00FF', bg: '#05000A' },
-            { vName: 'NEBULA CORE', v: 'stealth', acc: '#00FFCC', bg: '#000808' },
-            { vName: 'SUPERNOVA', v: 'elite', acc: '#FFCC00', bg: '#0A0500' },
+            { vName: 'SINGULARITY', v: 'spectral', acc: '#EE00FF', bg: '#000000' },
+            { vName: 'NEBULA CORE', v: 'stealth', acc: '#00FFCC', bg: '#000000' },
+            { vName: 'SUPERNOVA', v: 'elite', acc: '#FFCC00', bg: '#000000' },
         ]
     },
-    { 
+    {
         name: 'KINETIC', Comp: KineticGrid,
         variants: [
-            { vName: 'CYBER', v: 'classic', acc: '#00EEFF', bg: '#000508' },
-            { vName: 'MATRIX', v: 'spectral', acc: '#00FF00', bg: '#000800' },
-            { vName: 'SYNTH', v: 'stealth', acc: '#FF00FF', bg: '#080008' },
-            { vName: 'MONO', v: 'elite', acc: '#888888', bg: '#050505' },
+            { vName: 'CYBER', v: 'classic', acc: '#00EEFF', bg: '#000000' },
+            { vName: 'MATRIX', v: 'spectral', acc: '#00FF00', bg: '#000000' },
+            { vName: 'SYNTH', v: 'stealth', acc: '#FF00FF', bg: '#000000' },
+            { vName: 'MONO', v: 'elite', acc: '#888888', bg: '#000000' },
         ]
     },
-    { 
+    {
         name: 'PRISM', Comp: PrismBars,
         variants: [
-            { vName: 'CRYSTAL', v: 'classic', acc: '#FFFFFF', bg: '#050505' },
+            { vName: 'CRYSTAL', v: 'classic', acc: '#FFFFFF', bg: '#000000' },
             { vName: 'OBSIDIAN', v: 'spectral', acc: '#AAAAAA', bg: '#000000' },
-            { vName: 'EMERALD', v: 'stealth', acc: '#00FF88', bg: '#000803' },
-            { vName: 'RUBY', v: 'elite', acc: '#FF2222', bg: '#080000' },
+            { vName: 'EMERALD', v: 'stealth', acc: '#00FF88', bg: '#000000' },
+            { vName: 'RUBY', v: 'elite', acc: '#FF2222', bg: '#000000' },
         ]
     },
-    { 
+    {
         name: 'CHRONOS', Comp: Chronos,
         variants: [
-            { vName: 'HOURGLASS', v: 'classic', acc: '#FFD700', bg: '#080600' },
-            { vName: 'MIDNIGHT', v: 'spectral', acc: '#5555FF', bg: '#00000A' },
-            { vName: 'DAWN', v: 'stealth', acc: '#FF8800', bg: '#0A0500' },
-            { vName: 'TWILIGHT', v: 'elite', acc: '#AA00FF', bg: '#05000A' },
+            { vName: 'HOURGLASS', v: 'classic', acc: '#FFD700', bg: '#000000' },
+            { vName: 'MIDNIGHT', v: 'spectral', acc: '#5555FF', bg: '#000000' },
+            { vName: 'DAWN', v: 'stealth', acc: '#FF8800', bg: '#000000' },
+            { vName: 'TWILIGHT', v: 'elite', acc: '#AA00FF', bg: '#000000' },
         ]
     },
-    { 
+    {
         name: 'JELLYFISH', Comp: Jellyfish,
         variants: [
-            { vName: 'BIOLUME', v: 'classic', acc: '#00FFAA', bg: '#000805' },
-            { vName: 'ELECTRIC', v: 'spectral', acc: '#0088FF', bg: '#000308' },
-            { vName: 'DEEPSEA', v: 'stealth', acc: '#FF00AA', bg: '#080005' },
-            { vName: 'GHOST', v: 'elite', acc: '#FFFFFF', bg: '#080808' },
+            { vName: 'BIOLUME', v: 'classic', acc: '#00FFAA', bg: '#000000' },
+            { vName: 'ELECTRIC', v: 'spectral', acc: '#0088FF', bg: '#000000' },
+            { vName: 'DEEPSEA', v: 'stealth', acc: '#FF00AA', bg: '#000000' },
+            { vName: 'GHOST', v: 'elite', acc: '#FFFFFF', bg: '#000000' },
         ]
     },
-    { 
+    {
         name: 'NEBULA', Comp: Nebula,
         variants: [
-            { vName: 'ORION', v: 'classic', acc: '#6600FF', bg: '#05000A' },
-            { vName: 'HORSEHEAD', v: 'spectral', acc: '#FF2200', bg: '#0A0200' },
-            { vName: 'HELIX', v: 'stealth', acc: '#22FF88', bg: '#000805' },
-            { vName: 'CRAB', v: 'elite', acc: '#FFCC00', bg: '#0A0800' },
+            { vName: 'ORION', v: 'classic', acc: '#6600FF', bg: '#000000' },
+            { vName: 'HORSEHEAD', v: 'spectral', acc: '#FF2200', bg: '#000000' },
+            { vName: 'HELIX', v: 'stealth', acc: '#22FF88', bg: '#000000' },
+            { vName: 'CRAB', v: 'elite', acc: '#FFCC00', bg: '#000000' },
         ]
     },
 ];
@@ -824,16 +948,16 @@ export const INTERFACES = types.flatMap(t => t.variants.map(v => ({
     Component: t.Comp
 })));
 
-export function SpeechMode({ 
-    visible, listening: propsListening, speaking: propsSpeaking, 
-    volume: propsVolume, onClose, onMicPress: propsOnMicPress, 
-    onOpenTranscript, onOpenSettings, onSend, isHome 
+export function SpeechMode({
+    visible, listening: propsListening, speaking: propsSpeaking,
+    volume: propsVolume, onClose, onMicPress: propsOnMicPress,
+    onOpenTranscript, onOpenSettings, onSend, isHome
 }: Props) {
     const defaultVolume = useSharedValue(0);
     const volume = propsVolume || defaultVolume;
-    
+
     const [internalSpeaking, setInternalSpeaking] = useState(false);
-    
+
     const listening = isHome ? (propsListening ?? false) : (propsListening ?? false);
     const speaking = isHome ? (propsSpeaking ?? internalSpeaking) : (propsSpeaking ?? false);
 
@@ -848,6 +972,12 @@ export function SpeechMode({
     }, [themeIdx]);
 
     const [textInput, setTextInput] = useState('');
+
+    useSpeechRecognitionEvent('result', (event) => {
+        if (event.results[0]?.transcript) {
+            setTextInput(event.results[0].transcript);
+        }
+    });
 
     const handleSubmit = () => {
         if (!textInput.trim()) return;
@@ -869,17 +999,17 @@ export function SpeechMode({
                             </TouchableOpacity>
                         )}
                         {selected && (
-                            <selected.Component 
+                            <selected.Component
                                 key={selectedIdx}
-                                mode={mode} 
-                                sz={FS_SZ} 
-                                volume={volume} 
+                                mode={mode}
+                                sz={FS_SZ}
+                                volume={volume}
                                 variant={selected.variant as Variant}
                                 species={selected.species as Species}
                             />
                         )}
                     </View>
-                    
+
                     <View style={fStyles.bControls}>
                         {isHome && (
                             <View style={styles.inputRow}>
@@ -887,13 +1017,13 @@ export function SpeechMode({
                                     style={[styles.input, { borderColor: accent + '44', flex: 1 }]}
                                     value={textInput}
                                     onChangeText={setTextInput}
-                                    placeholder={selected ? `Type to ${selected.name.charAt(0).toUpperCase() + selected.name.slice(1).toLowerCase()}...` : "Type to Fox..."}
+                                    placeholder={selected ? `Type to ${selected.name.charAt(0).toUpperCase() + selected.name.slice(1).toLowerCase()}...` : "Type to KitsunAI..."}
                                     placeholderTextColor={accent + '66'}
                                     onSubmitEditing={handleSubmit}
                                 />
                                 <TouchableOpacity
                                     style={[
-                                        styles.sendButton, 
+                                        styles.sendButton,
                                         { backgroundColor: accent },
                                         !textInput.trim() && styles.sendDisabled
                                     ]}
@@ -904,13 +1034,13 @@ export function SpeechMode({
                                 </TouchableOpacity>
                             </View>
                         )}
-                        
+
                         <View style={styles.controlRow}>
                             <Text style={[styles.micLabel, { color: accent + '88' }]}>
                                 {listening ? 'LISTENING...' : 'PUSH TO TALK'}
                             </Text>
-                            <TouchableOpacity 
-                                style={[styles.micBtn, { borderColor: accent + '44' }]} 
+                            <TouchableOpacity
+                                style={[styles.micBtn, { borderColor: accent + '44' }]}
                                 onPress={propsOnMicPress}
                             >
                                 <View style={[styles.micInner, { backgroundColor: accent + '22' }]}>
@@ -921,7 +1051,7 @@ export function SpeechMode({
                                     )}
                                 </View>
                             </TouchableOpacity>
-                            
+
                             <TouchableOpacity onPress={isHome ? onOpenTranscript : onClose} style={fStyles.backBtn}>
                                 <Text style={[styles.backText, { color: accent }]}>{isHome ? 'OPEN TRANSCRIPT' : 'DISCONNECT'}</Text>
                             </TouchableOpacity>
@@ -929,7 +1059,7 @@ export function SpeechMode({
                     </View>
                 </View>
             )}
-            
+
             {!isHome && <TouchableOpacity style={styles.closeX} onPress={onClose}><Text style={{ color: '#444', fontSize: 18, fontFamily: MONO }}>×</Text></TouchableOpacity>}
         </View>
     );

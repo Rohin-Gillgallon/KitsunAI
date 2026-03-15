@@ -26,11 +26,28 @@ export async function getModel(
         n_batch: 512,
         n_gpu_layers: 0,
       });
+      console.log('Model initialized, warming up...');
+      await warmupModel(context);
+      console.log('Model warm-up complete.');
       return context;
     })();
   }
 
   return initPromise;
+}
+
+/**
+ * Performs a small inference to 'warm up' the model.
+ */
+async function warmupModel(ctx: LlamaContext) {
+  try {
+    await ctx.completion({
+      prompt: 'Hello',
+      n_predict: 1,
+    });
+  } catch (e) {
+    console.warn('Warm-up failed:', e);
+  }
 }
 
 /**
