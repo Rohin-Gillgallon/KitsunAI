@@ -58,7 +58,7 @@ export function SettingsModal({ visible, onClose }: Props) {
             <View style={styles.overlay}>
                 <View style={[styles.sheet, { borderTopColor: activeAccent, borderTopWidth: 2 }]}>
                     <View style={styles.header}>
-                        <Text style={[styles.title, { color: activeAccent, fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier' }]}>FOX AI CONFIG</Text>
+                        <Text style={[styles.title, { color: activeAccent, fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier' }]}>KITSUNAI CONFIG</Text>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                             <Text style={styles.closeText}>✕</Text>
                         </TouchableOpacity>
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
 });
 
 const COLLECTIONS = [
-    { name: 'GUARDIAN FOX', bg: '#080600', accent: '#FF6600', Component: INTERFACES[0].Component, variant: 'classic' as Variant, species: 'fox' as Species },
+    { name: 'GUARDIAN KITSUNE', bg: '#080600', accent: '#FF6600', Component: INTERFACES[0].Component, variant: 'classic' as Variant, species: 'fox' as Species },
     { name: 'ORIGAMI SPANIEL', bg: '#080810', accent: '#00CCFF', Component: INTERFACES[4].Component, variant: 'classic' as Variant, species: 'spaniel' as Species },
     { name: 'THE VOID', bg: '#000', accent: '#666', Component: INTERFACES[8].Component, variant: 'classic' as Variant, species: undefined as any },
     { name: 'KINETIC GRID', bg: '#000', accent: '#00EEFF', Component: INTERFACES[12].Component, variant: 'classic' as Variant, species: undefined as any },

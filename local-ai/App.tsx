@@ -25,7 +25,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showSpeech, setShowSpeech] = useState(false);
 
-  const ai = useAI();
+  const ai = useAI(ready);
   const voice = useVoice(ai.speaking, (transcript) => {
     // Optional: handle interim results if needed in App level
   });

@@ -27,7 +27,7 @@ export function DownloadScreen({ onComplete }: Props) {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Fox AI</Text>
+            <Text style={styles.title}>KitsunAI</Text>
             <Text style={styles.subtitle}>
                 The AI model needs to be downloaded once.{'\n'}
                 It is 2.3GB — use Wi-Fi.

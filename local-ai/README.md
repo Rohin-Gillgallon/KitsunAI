@@ -1,3 +1,30 @@
+# KitsunAI
+
+KitsunAI is a local, private AI assistant featuring a 3D animated companion. It allows you to run Large Language Models (LLMs) directly on your device, ensuring your conversations stay private and secure.
+
+### Default Model
+
+By default, KitsunAI uses **Microsoft Phi-3 Mini (4K Instruct, Q4 GGUF)**.
+- **Size**: ~2.3GB
+- **Format**: GGUF (quantized to 4-bit for mobile performance)
+- **Source**: [Hugging Face](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf)
+
+## Features
+
+- **Local AI**: Run LLMs locally on your Android device for maximum privacy.
+- **3D Companion**: Interactive and animated 3D fox companion that reacts to your interactions.
+- **Voice Interaction**: Integrated speech-to-text and text-to-speech for seamless voice conversations.
+- **Model Management**: Easy-to-use interface for downloading and configuring various local AI models.
+- **Customizable**: Adjust voice settings, model parameters, and visual features.
+
+## Tech Stack
+
+- **Framework**: [Expo](https://expo.dev/) / React Native
+- **AI Engine**: [llama.rn](https://github.com/Kudo/llama.rn) (local inference)
+- **3D Graphics**: [Three.js](https://threejs.org/) / [expo-three](https://github.com/expo/expo-three)
+- **UI & Animations**: [React Native Skia](https://shopify.github.io/react-native-skia/) & [Reanimated](https://docs.swmansion.com/react-native-reanimated/)
+- **Database**: [Drizzle ORM](https://orm.drizzle.team/) with [Expo SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/)
+
 ## Android build environment
 
 - **Gradle version**: The Android project is configured to use **Gradle 8.13** via `android/gradle/wrapper/gradle-wrapper.properties`, which matches the minimum supported version required by the Android Gradle Plugin in this Expo/React Native template.
@@ -12,8 +39,8 @@
 Once a standard JDK is installed and `JAVA_HOME`/`PATH` are updated, run:
 
 ```bash
-pnpm expo run:android
+pnpm expo run:android //--variant release
 ```
 
-from the `local-ai` directory to build and run the Android app.
+from the `kitsunai` directory to build and run the Android app.
 

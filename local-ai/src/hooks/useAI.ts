@@ -15,7 +15,7 @@ export type Message = {
     content: string;
 };
 
-export function useAI(initialText?: string) {
+export function useAI(shouldLoadModel: boolean = true) {
     const [msgs, setMsgs] = useState<Message[]>([]);
     const [loading, setLoading] = useState(false);
     const [streamingText, setStreamingText] = useState('');
@@ -27,7 +27,7 @@ export function useAI(initialText?: string) {
     const conversationId = useRef<string>('');
     const speechQueueCount = useRef(0);
 
-    const init = useCallback(async () => {
+    const initDb = useCallback(async () => {
         try {
             await runMigrations();
             const existingId = Settings.getCurrentConversationId();
@@ -52,19 +52,26 @@ export function useAI(initialText?: string) {
         } finally {
             setDbReady(true);
         }
-
-        try {
-            await getModel();
-        } catch (e) {
-            console.error('Model load error:', e);
-        } finally {
-            setModelReady(true);
-        }
     }, []);
 
+    const initModel = useCallback(async () => {
+        if (!shouldLoadModel) return;
+        try {
+            await getModel();
+            setModelReady(true);
+        } catch (e) {
+            console.error('Model load error:', e);
+            // Even on error, we might want to set ready or handle it
+        }
+    }, [shouldLoadModel]);
+
     useEffect(() => {
-        init();
-    }, [init]);
+        initDb();
+    }, [initDb]);
+
+    useEffect(() => {
+        initModel();
+    }, [initModel]);
 
     const createNewConversation = async () => {
         Speech.stop();

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Fox AI",
-    "slug": "fox-ai",
+    "name": "KitsunAI",
+    "slug": "kitsunai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,8 +15,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Allow Fox AI to use the microphone for voice input",
-          "speechRecognitionPermission": "Allow Fox AI to use speech recognition"
+          "microphonePermission": "Allow KitsunAI to use the microphone for voice input",
+          "speechRecognitionPermission": "Allow KitsunAI to use speech recognition"
         }
       ]
     ],
@@ -31,14 +31,14 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.niceturret.localai",
+      "package": "com.niceturret.kitsunai",
       "softwareKeyboardLayoutMode": "pan",
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./public/favicon.png"
     }
   }
 }
