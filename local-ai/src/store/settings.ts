@@ -28,6 +28,9 @@ export const Settings = {
   getCurrentConversationId: () => storage.getString('currentConversationId') ?? null,
   setCurrentConversationId: (id: string) => storage.set('currentConversationId', id),
 
+  getSelectedVoice: () => storage.getString('selectedVoice') ?? undefined,
+  setSelectedVoice: (id: string) => storage.set('selectedVoice', id),
+
   getThemeIndex: () => storage.getNumber('themeIndex') ?? 0,
   setThemeIndex: (v: number) => storage.set('themeIndex', v),
 

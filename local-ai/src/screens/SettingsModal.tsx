@@ -4,11 +4,12 @@ import {
     StyleSheet, Modal, ScrollView, Dimensions, Platform,
     FlatList, ActivityIndicator, Alert,
 } from 'react-native';
-import Slider from '@react-native-community/slider';
 import * as FileSystem from 'expo-file-system/legacy';
+import Svg, { Path, Rect, Line, Circle } from 'react-native-svg';
 import { Settings, useTheme, storage } from '../store/settings';
 import { MODELS, ModelDef } from '../model/models';
 import { releaseModel, getModelPath } from '../model/llm';
+import { VoiceSettingsScreen } from './VoiceSettingsScreen';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -25,6 +26,15 @@ const GAP = 10;
 const GRID_W = SCREEN_WIDTH;
 const CELL_W = Math.floor((GRID_W - PAD * 2 - GAP) / 2);
 
+const MONO = Platform.OS === 'android' ? 'monospace' : 'Courier';
+
+type VoiceOption = {
+    identifier: string;
+    name: string;
+    language: string;
+    quality?: string;
+};
+
 export function SettingsModal({ visible, onClose }: Props) {
     const globalThemeIdx = useTheme();
     const [systemPrompt, setSystemPrompt] = useState(Settings.getSystemPrompt());
@@ -36,6 +46,10 @@ export function SettingsModal({ visible, onClose }: Props) {
     const [showInterfacePicker, setShowInterfacePicker] = useState(false);
     const [pickerView, setPickerView] = useState<'collections' | 'variants'>('collections');
     const [selectedCollection, setSelectedCollection] = useState<number | null>(null);
+    const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+
+    // Voice state
+    const [selectedVoice, setSelectedVoice] = useState<string | undefined>(Settings.getSelectedVoice());
 
     // Model state
     const [selectedModelId, setSelectedModelId] = useState(Settings.getSelectedModelId());
@@ -45,16 +59,20 @@ export function SettingsModal({ visible, onClose }: Props) {
 
     useEffect(() => { setThemeIdx(globalThemeIdx); }, [globalThemeIdx]);
 
+    useEffect(() => {
+        if (visible) {
+            refreshDownloaded();
+        }
+    }, [visible]);
+
+
+
     const dummyVolume = useSharedValue(0);
     const activeAccent = (INTERFACES[themeIdx] || INTERFACES[0]).accent || '#FFFFFF';
 
     const refreshDownloaded = useCallback(() => {
         setDownloadedIds(Settings.getDownloadedModelIds());
     }, []);
-
-    useEffect(() => {
-        if (visible) refreshDownloaded();
-    }, [visible]);
 
     async function downloadModel(model: ModelDef) {
         if (downloadingId) return;
@@ -144,7 +162,6 @@ export function SettingsModal({ visible, onClose }: Props) {
                             const path = getModelPath(model.id);
                             await FileSystem.deleteAsync(path, { idempotent: true });
                             Settings.setModelIdDownloaded(model.id, false);
-                            // If deleting the active model, fall back to default
                             if (selectedModelId === model.id) {
                                 const fallback = downloadedIds.find(id => id !== model.id);
                                 const newId = fallback ?? 'llama32-3b';
@@ -163,15 +180,14 @@ export function SettingsModal({ visible, onClose }: Props) {
     }
 
     async function save() {
-        const prevModelId = Settings.getSelectedModelId();
         Settings.setSystemPrompt(systemPrompt);
-        Settings.setVoiceSpeed(voiceSpeed);
         Settings.setThreadCount(threadCount);
         Settings.setContextSize(contextSize);
         Settings.setBatchSize(batchSize);
         Settings.setThemeIndex(themeIdx);
         Settings.setSelectedModelId(selectedModelId);
-        await releaseModel(); // always release so next message reloads with new params
+        if (selectedVoice) Settings.setSelectedVoice(selectedVoice);
+        await releaseModel();
         onClose();
     }
 
@@ -182,7 +198,7 @@ export function SettingsModal({ visible, onClose }: Props) {
             <View style={styles.overlay}>
                 <View style={[styles.sheet, { borderTopColor: activeAccent, borderTopWidth: 2 }]}>
                     <View style={styles.header}>
-                        <Text style={[styles.title, { color: activeAccent, fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier' }]}>
+                        <Text style={[styles.title, { color: activeAccent, fontFamily: MONO }]}>
                             KITSUNAI CONFIG
                         </Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -211,23 +227,29 @@ export function SettingsModal({ visible, onClose }: Props) {
                             placeholder="Enter system prompt..."
                         />
 
-                        <Text style={styles.label}>Voice Speed: {voiceSpeed.toFixed(1)}x</Text>
-                        <Slider
-                            style={{ width: '100%', height: 36 }}
-                            minimumValue={0.5}
-                            maximumValue={2.0}
-                            step={0.1}
-                            value={voiceSpeed}
-                            onValueChange={setVoiceSpeed}
-                            minimumTrackTintColor={activeAccent}
-                            maximumTrackTintColor="#444"
-                            thumbTintColor={activeAccent}
-                        />
-                        <View style={styles.sliderLabels}>
-                            <Text style={styles.sliderLabel}>0.5x</Text>
-                            <Text style={styles.sliderLabel}>2.0x</Text>
-                        </View>
+                        {/* ── VOICE ── */}
+                        {/* TODO: Replace expo-speech voices with ONNX neural TTS (Kokoro ~82MB or Piper ~60MB per voice)
+                        for fully offline high-quality voices. Integration: onnxruntime-react-native + expo-av.
+                        See: https://github.com/thewh1teagle/kokoro-onnx
+                        and: https://github.com/rhasspy/piper */}
+                        <Text style={styles.label}>Voice</Text>
+                        <TouchableOpacity
+                            style={[styles.pickerButton, { borderColor: activeAccent }]}
+                            onPress={() => setShowVoiceSettings(true)}
+                        >
+                            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                                <Rect x="9" y="2" width="6" height="12" rx="3" stroke={activeAccent} strokeWidth="1.5" />
+                                <Path d="M5 10a7 7 0 0 0 14 0" stroke={activeAccent} strokeWidth="1.5" strokeLinecap="round" />
+                                <Line x1="12" y1="17" x2="12" y2="21" stroke={activeAccent} strokeWidth="1.5" strokeLinecap="round" />
+                                <Line x1="8" y1="21" x2="16" y2="21" stroke={activeAccent} strokeWidth="1.5" strokeLinecap="round" />
+                            </Svg>
+                            <Text style={[styles.pickerButtonText, { color: activeAccent }]}>
+                                {Settings.getSelectedVoice() ? 'Custom voice selected' : 'Default voice'}
+                            </Text>
+                            <Text style={{ color: activeAccent, fontSize: 12 }}>❯</Text>
+                        </TouchableOpacity>
 
+                        {/* ── VISUALIZER ── */}
                         <Text style={styles.label}>Visualizer Interface</Text>
                         <TouchableOpacity
                             style={[styles.pickerButton, { borderColor: activeAccent }]}
@@ -323,6 +345,7 @@ export function SettingsModal({ visible, onClose }: Props) {
                             );
                         })}
 
+                        {/* ── CPU THREADS ── */}
                         <Text style={styles.label}>CPU Threads</Text>
                         <View style={threadCount >= 8 ? styles.threadRowWrap : styles.threadRow}>
                             {[1, 2, 4, 6, 8].map(t => (
@@ -339,6 +362,7 @@ export function SettingsModal({ visible, onClose }: Props) {
                         </View>
                         <Text style={styles.hint}>Higher = faster responses but more CPU usage.</Text>
 
+                        {/* ── CONTEXT SIZE ── */}
                         <Text style={styles.label}>Context Size (Tokens)</Text>
                         <View style={styles.threadRow}>
                             {[1024, 2048, 4096, 8192].map(v => (
@@ -354,9 +378,10 @@ export function SettingsModal({ visible, onClose }: Props) {
                             ))}
                         </View>
                         <Text style={styles.hint}>
-                            Larger = longer memory but more RAM usage. 2k is safe for most phones.
+                            Larger = longer conversation memory but more RAM. 2k tokens is safe for most phones.
                         </Text>
 
+                        {/* ── BATCH SIZE ── */}
                         <Text style={styles.label}>Batch Size (Tokens)</Text>
                         <View style={styles.threadRow}>
                             {[128, 256, 512, 1024].map(v => (
@@ -372,8 +397,9 @@ export function SettingsModal({ visible, onClose }: Props) {
                             ))}
                         </View>
                         <Text style={styles.hint}>
-                            Larger = faster prompt processing but more RAM usage. 512 is the safe default.
+                            Larger = faster prompt processing but more RAM. 512 tokens is the safe default.
                         </Text>
+
                         <View style={{ height: 64 }} />
                     </ScrollView>
                 </View>
@@ -381,7 +407,7 @@ export function SettingsModal({ visible, onClose }: Props) {
                 <Modal visible={showInterfacePicker} transparent={false} animationType="slide">
                     <View style={styles.fullPickerContainer}>
                         <View style={styles.pickerHeader}>
-                            <Text style={[styles.pickerTitle, { color: activeAccent, fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier' }]}>
+                            <Text style={[styles.pickerTitle, { color: activeAccent, fontFamily: MONO }]}>
                                 SELECT_INTERFACE
                             </Text>
                             <TouchableOpacity onPress={() => setShowInterfacePicker(false)} style={styles.closeButton}>
@@ -425,7 +451,7 @@ export function SettingsModal({ visible, onClose }: Props) {
                                             />
                                         </View>
                                         <View style={styles.cellBar}>
-                                            <Text style={[styles.themeName, { color: item.accent, fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier' }]}>
+                                            <Text style={[styles.themeName, { color: item.accent, fontFamily: MONO }]}>
                                                 {isColl ? item.name : item.variantName}
                                             </Text>
                                         </View>
@@ -440,6 +466,14 @@ export function SettingsModal({ visible, onClose }: Props) {
                         )}
                     </View>
                 </Modal>
+                <VoiceSettingsScreen
+                    visible={showVoiceSettings}
+                    accent={activeAccent}
+                    onClose={() => {
+                        setShowVoiceSettings(false);
+                        setVoiceSpeed(Settings.getVoiceSpeed());
+                    }}
+                />
             </View>
         </Modal>
     );
@@ -460,7 +494,6 @@ const styles = StyleSheet.create({
     },
     scroll: {
         flex: 1,
-        flexGrow: 1,
     },
     header: {
         flexDirection: 'row',
@@ -485,7 +518,8 @@ const styles = StyleSheet.create({
         color: '#BBB', fontSize: 10, fontWeight: 'bold',
         letterSpacing: 2, marginBottom: 6, marginTop: 18,
         textTransform: 'uppercase',
-    }, saveButtonSmall: {
+    },
+    saveButtonSmall: {
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
@@ -495,7 +529,7 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: 'bold',
         letterSpacing: 2,
-        fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier',
+        fontFamily: MONO,
     },
     textArea: {
         backgroundColor: '#111', color: '#fff', borderRadius: 16,
@@ -503,9 +537,49 @@ const styles = StyleSheet.create({
         textAlignVertical: 'top', borderWidth: 1, borderColor: '#222',
     },
     sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: -8 },
-    sliderLabel: { color: '#888', fontSize: 10, fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier' },
-
-    // Model cards
+    sliderLabel: { color: '#888', fontSize: 10, fontFamily: MONO },
+    voiceGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 4,
+    },
+    voiceCard: {
+        backgroundColor: '#0E0E0E',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#1E1E1E',
+        padding: 10,
+        width: '47%',
+        position: 'relative',
+    },
+    voiceName: {
+        color: '#CCC',
+        fontSize: 11,
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+    voiceLang: {
+        color: '#555',
+        fontSize: 9,
+        fontFamily: MONO,
+    },
+    voiceQuality: {
+        color: '#444',
+        fontSize: 8,
+        fontFamily: MONO,
+        marginTop: 2,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    voiceSelectedDot: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
     modelCard: {
         backgroundColor: '#0E0E0E',
         borderRadius: 14,
@@ -522,10 +596,10 @@ const styles = StyleSheet.create({
         borderWidth: 1, borderRadius: 4,
         paddingHorizontal: 5, paddingVertical: 1,
     },
-    modelTagText: { fontSize: 8, letterSpacing: 1.5, fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier' },
+    modelTagText: { fontSize: 8, letterSpacing: 1.5, fontFamily: MONO },
     modelDesc: { color: '#666', fontSize: 11, marginBottom: 5 },
     modelMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    modelMetaText: { color: '#555', fontSize: 10, fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier' },
+    modelMetaText: { color: '#555', fontSize: 10, fontFamily: MONO },
     modelMetaDot: { color: '#333', fontSize: 10 },
     modelActions: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 },
     selectedBadge: {
@@ -555,8 +629,7 @@ const styles = StyleSheet.create({
         flex: 1, height: 3, backgroundColor: '#1A1A1A', borderRadius: 2, overflow: 'hidden',
     },
     progressFill: { height: 3, borderRadius: 2 },
-    progressText: { fontSize: 10, fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier', minWidth: 32 },
-
+    progressText: { fontSize: 10, fontFamily: MONO, minWidth: 32 },
     pickerButton: {
         flexDirection: 'row', alignItems: 'center', backgroundColor: '#111',
         borderRadius: 16, padding: 16, borderWidth: 1,
@@ -564,11 +637,10 @@ const styles = StyleSheet.create({
     },
     pickerButtonText: {
         flex: 1, marginHorizontal: 12,
-        fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier',
+        fontFamily: MONO,
         fontSize: 12, letterSpacing: 2, fontWeight: 'bold',
     },
     themeColor: { width: 12, height: 12, borderRadius: 6 },
-
     threadRow: { flexDirection: 'row', justifyContent: 'space-between' },
     threadRowWrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' },
     threadButton: {
@@ -579,11 +651,10 @@ const styles = StyleSheet.create({
     threadText: { fontSize: 16, fontWeight: 'bold' },
     hint: {
         color: '#666', fontSize: 10, marginTop: 12, lineHeight: 15,
-        fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier',
+        fontFamily: MONO,
     },
     saveButton: { borderRadius: 30, padding: 16, alignItems: 'center', marginTop: 24 },
     saveText: { fontSize: 14, fontWeight: 'bold', letterSpacing: 2, textTransform: 'uppercase' },
-
     fullPickerContainer: { flex: 1, backgroundColor: '#000', paddingTop: 60 },
     pickerHeader: {
         flexDirection: 'row', justifyContent: 'space-between',

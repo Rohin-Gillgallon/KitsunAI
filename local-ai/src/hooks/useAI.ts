@@ -119,6 +119,7 @@ export function useAI(shouldLoadModel: boolean = true) {
         if (!clean) return;
         speechQueueCount.current++;
         Speech.speak(clean, {
+            voice: Settings.getSelectedVoice(),
             language: 'en-US',
             rate: Settings.getVoiceSpeed(),
             pitch: 1.0,
@@ -240,3 +241,18 @@ export function useAI(shouldLoadModel: boolean = true) {
         }
     };
 }
+
+/*---
+
+**ONNX voices (future)**
+
+The most practical on-device neural TTS options via ONNX Runtime:
+
+**Kokoro** (~82MB) — highest quality open source TTS model, multiple voice styles, runs at realtime on mobile. Uses ONNX Runtime Mobile. Voices include: American female, American male, British female, British male. Would need `onnxruntime-react-native` package and a custom inference wrapper that takes text → audio buffer → plays via `expo-av`.
+
+**Piper TTS** (~60MB per voice) — used by Home Assistant, very fast, designed for edge devices. ONNX format. Many community voices available. Same integration path as Kokoro.
+
+**Integration path when you're ready:**
+```
+pnpm add onnxruntime-react-native
+pnpm add expo-av*/
