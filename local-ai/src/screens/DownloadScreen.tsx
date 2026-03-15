@@ -1,7 +1,9 @@
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
-import { ensureModelDownloaded } from '../model/download';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Settings } from '../store/settings';
+import { MODELS, DEFAULT_MODEL_ID } from '../model/models';
+import { getModelPath } from '../model/llm';
 
 type Props = {
     onComplete: () => void;
@@ -12,11 +14,27 @@ export function DownloadScreen({ onComplete }: Props) {
     const [downloading, setDownloading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const modelId = Settings.getSelectedModelId() ?? DEFAULT_MODEL_ID;
+    const model = MODELS.find(m => m.id === modelId) ?? MODELS.find(m => m.id === DEFAULT_MODEL_ID)!;
+
     async function startDownload() {
         try {
             setDownloading(true);
             setError(null);
-            await ensureModelDownloaded((pct) => setProgress(pct));
+            const dest = getModelPath(model.id);
+            const download = FileSystem.createDownloadResumable(
+                model.url,
+                dest,
+                {},
+                ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
+                    const pct = totalBytesExpectedToWrite > 0
+                        ? Math.round((totalBytesWritten / totalBytesExpectedToWrite) * 100)
+                        : 0;
+                    setProgress(pct);
+                },
+            );
+            await download.downloadAsync();
+            Settings.setModelIdDownloaded(model.id, true);
             Settings.setModelDownloaded(true);
             onComplete();
         } catch (e) {
@@ -30,7 +48,17 @@ export function DownloadScreen({ onComplete }: Props) {
             <Text style={styles.title}>KitsunAI</Text>
             <Text style={styles.subtitle}>
                 The AI model needs to be downloaded once.{'\n'}
-                It is 2.3GB — use Wi-Fi.
+                Use Wi-Fi.
+            </Text>
+
+            <View style={styles.modelCard}>
+                <Text style={styles.modelName}>{model.name}</Text>
+                <Text style={styles.modelSize}>{model.sizeGB} GB</Text>
+                <Text style={styles.modelDesc}>{model.description}</Text>
+            </View>
+
+            <Text style={styles.hint}>
+                You can download additional models in Settings after setup.
             </Text>
 
             {!downloading && !error && (
@@ -44,7 +72,7 @@ export function DownloadScreen({ onComplete }: Props) {
                     <ActivityIndicator size="large" color="#ffffff" />
                     <Text style={styles.progressText}>{progress}%</Text>
                     <View style={styles.progressBar}>
-                        <View style={[styles.progressFill, { width: `${progress}%` }]} />
+                        <View style={[styles.progressFill, { width: `${progress}%` as any }]} />
                     </View>
                 </View>
             )}
@@ -79,8 +107,41 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#aaa',
         textAlign: 'center',
-        marginBottom: 40,
+        marginBottom: 24,
         lineHeight: 24,
+    },
+    modelCard: {
+        backgroundColor: '#1A1A1A',
+        borderRadius: 16,
+        padding: 20,
+        width: '100%',
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#2E75B6',
+        alignItems: 'center',
+        gap: 4,
+    },
+    modelName: {
+        color: '#fff',
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    modelSize: {
+        color: '#2E75B6',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    modelDesc: {
+        color: '#888',
+        fontSize: 13,
+        textAlign: 'center',
+    },
+    hint: {
+        color: '#555',
+        fontSize: 12,
+        textAlign: 'center',
+        marginBottom: 32,
+        lineHeight: 18,
     },
     button: {
         backgroundColor: '#2E75B6',

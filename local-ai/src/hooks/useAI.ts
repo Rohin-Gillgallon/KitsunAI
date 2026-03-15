@@ -26,6 +26,8 @@ export function useAI(shouldLoadModel: boolean = true) {
 
     const conversationId = useRef<string>('');
     const speechQueueCount = useRef(0);
+    const streamingRef = useRef('');
+    const streamingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const initDb = useCallback(async () => {
         try {
@@ -61,7 +63,8 @@ export function useAI(shouldLoadModel: boolean = true) {
             setModelReady(true);
         } catch (e) {
             console.error('Model load error:', e);
-            // Even on error, we might want to set ready or handle it
+            setErrorMsg('Failed to load model. Please re-download it in Settings.');
+            setModelReady(true);
         }
     }, [shouldLoadModel]);
 
@@ -142,6 +145,9 @@ export function useAI(shouldLoadModel: boolean = true) {
         };
 
         setErrorMsg(null);
+        setLoading(true);
+        Speech.stop();
+        setSpeaking(false);
 
         await db.insert(messages).values({
             ...userMessage,
@@ -151,10 +157,15 @@ export function useAI(shouldLoadModel: boolean = true) {
 
         const newMsgs = [...msgs, userMessage];
         setMsgs(newMsgs);
-        setLoading(true);
+
+        // Reset streaming
+        streamingRef.current = '';
         setStreamingText('');
-        Speech.stop();
-        setSpeaking(false);
+
+        // Update display at 5fps max to prevent strobe
+        streamingIntervalRef.current = setInterval(() => {
+            setStreamingText(streamingRef.current);
+        }, 200);
 
         let sentenceBuffer = '';
 
@@ -163,7 +174,7 @@ export function useAI(shouldLoadModel: boolean = true) {
                 newMsgs,
                 Settings.getSystemPrompt(),
                 (token) => {
-                    setStreamingText(prev => prev + token);
+                    streamingRef.current += token;
                     sentenceBuffer += token;
                     const match = sentenceBuffer.match(/[.!?](\s+|$)|(\n+)/);
                     if (match) {
@@ -174,6 +185,11 @@ export function useAI(shouldLoadModel: boolean = true) {
                     }
                 }
             );
+
+            if (streamingIntervalRef.current) {
+                clearInterval(streamingIntervalRef.current);
+                streamingIntervalRef.current = null;
+            }
 
             const assistantMessage: Message = {
                 id: uuid.v4() as string,
@@ -195,6 +211,10 @@ export function useAI(shouldLoadModel: boolean = true) {
             }
 
         } catch (e) {
+            if (streamingIntervalRef.current) {
+                clearInterval(streamingIntervalRef.current);
+                streamingIntervalRef.current = null;
+            }
             console.error('Send error:', e);
             setErrorMsg('System override error. Connection failed.');
         } finally {

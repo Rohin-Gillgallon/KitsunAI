@@ -2,12 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity,
     StyleSheet, ActivityIndicator, Dimensions,
-    KeyboardAvoidingView, Platform, Animated,
-    ScrollView
+    Platform, Animated, ScrollView, Keyboard
 } from 'react-native';
-import { useSharedValue, withSpring } from 'react-native-reanimated';
+import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { useTheme } from '../store/settings';
-import * as Speech from 'expo-speech';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { ConversationDrawer } from './ConversationDrawer';
 import { BootingScreen } from '../components/BootingScreen';
@@ -16,32 +14,27 @@ import { useVoice } from '../hooks/useVoice';
 import { INTERFACES } from './SpeechMode';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+const MONO = Platform.OS === 'android' ? 'monospace' : 'Courier';
 
-// Helper to prevent Android text clipping that scales with message length
 const getSafetyBuffer = (content: string, isUser: boolean) => {
-    if (isUser) return '  ';
-    // Add 1 extra newline for every ~250 characters to cover cumulative measurement errors
+    if (isUser) return '   ';
     const extraLines = Math.max(1, Math.floor(content.length / 500) + 1);
     return '\n'.repeat(extraLines) + ' ';
 };
 
-const MONO = Platform.OS === 'android' ? 'monospace' : 'Courier';
-
-// 1. Theme-aware MessageBubble
-const MessageBubble = ({ item, accent }: { item: Message; accent: string }) => {
+const MessageBubble = React.memo(({ item, accent }: { item: Message; accent: string }) => {
     const isUser = item.role === 'user';
-
     return (
         <View style={{
-            flexDirection: 'row',
-            width: '100%',
-            justifyContent: isUser ? 'flex-end' : 'flex-start',
+            alignItems: isUser ? 'flex-end' : 'flex-start',
             paddingHorizontal: 16,
             marginBottom: 12,
         }}>
             <View style={[
                 styles.bubbleWrapper,
-                isUser ? { backgroundColor: '#111', borderColor: accent + '44', borderWidth: 1 } : { backgroundColor: 'transparent' }
+                isUser
+                    ? { backgroundColor: '#111', borderColor: accent + '44', borderWidth: 1 }
+                    : { backgroundColor: 'transparent' }
             ]}>
                 {!isUser && <Text style={[styles.roleLabel, { color: accent }]}>KITSUNAI_OS v1.0</Text>}
                 <Text
@@ -50,13 +43,14 @@ const MessageBubble = ({ item, accent }: { item: Message; accent: string }) => {
                         !isUser && { fontFamily: MONO, fontSize: 13, color: '#DDD' }
                     ]}
                     textBreakStrategy="simple"
+                    numberOfLines={0}
                 >
                     {item.content}{getSafetyBuffer(item.content, isUser)}
                 </Text>
             </View>
         </View>
     );
-};
+});
 
 export type Message = {
     id: string;
@@ -64,9 +58,11 @@ export type Message = {
     content: string;
 };
 
-export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnType<typeof useAI> }) {
+export function ChatScreen({ onClose, ai }: { onClose?: () => void; ai: ReturnType<typeof useAI> }) {
     const [input, setInput] = useState('');
     const [drawerOpen, setDrawerOpen] = useState(false);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+    const inputRef = useRef('');
 
     const msgs = ai.msgs;
     const loading = ai.loading;
@@ -81,30 +77,47 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
 
     const scrollRef = useRef<ScrollView>(null);
     const pulseAnim = useRef(new Animated.Value(1)).current;
-    
-    // Wire up voice hook
+
     const voice = useVoice(ai.speaking, (transcript) => {
         setInput(transcript);
+        inputRef.current = transcript;
     });
-    const { recording, volume, toggleRecording } = voice;
+    const { recording, toggleRecording } = voice;
 
-    // Cleanup Effect
     useEffect(() => {
+        const show = Keyboard.addListener('keyboardDidShow', (e) => {
+            setKeyboardHeight(e.endCoordinates.height);
+        });
+        const hide = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardHeight(0);
+        });
         return () => {
+            show.remove();
+            hide.remove();
             ai.stopSpeech();
             ExpoSpeechRecognitionModule.stop();
             pulseAnim.stopAnimation();
         };
     }, []);
 
+    useEffect(() => {
+        if (msgs.length > 0) {
+            setTimeout(() => {
+                scrollRef.current?.scrollToEnd({ animated: true });
+            }, 80);
+        }
+    }, [msgs.length]);
+
     const createNewConversation = async () => {
         await ai.createNewConversation();
         setInput('');
+        inputRef.current = '';
     };
 
     const loadConversation = async (id: string) => {
         await ai.loadConversation(id);
         setInput('');
+        inputRef.current = '';
     };
 
     function startPulse() {
@@ -125,23 +138,17 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
         if (event.results[0]?.transcript) {
             const transcript = event.results[0].transcript;
             setInput(transcript);
+            inputRef.current = transcript;
         }
     });
-
-    // Removed stray volumechange listener, handled by useVoice.ts
 
     useSpeechRecognitionEvent('end', () => {
         stopPulse();
-        if (input.trim()) {
-            send();
-        }
+        if (inputRef.current.trim()) send(inputRef.current);
     });
 
     useSpeechRecognitionEvent('error', (event) => {
-        if (event.error === 'no-speech') {
-            stopPulse();
-            return;
-        }
+        if (event.error === 'no-speech') { stopPulse(); return; }
         stopPulse();
     });
 
@@ -151,20 +158,17 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
             startPulse();
         } else {
             stopPulse();
-            if (input.trim()) {
-                send();
-            }
+            if (inputRef.current.trim()) send(inputRef.current);
         }
         await toggleRecording();
     }
 
-    async function send() {
-        const text = input;
+    async function send(overrideText?: string) {
+        const text = overrideText ?? inputRef.current;
         if (!text.trim() || loading) return;
-        
         setInput('');
+        inputRef.current = '';
         await ai.send(text);
-        
         setTimeout(() => {
             scrollRef.current?.scrollToEnd({ animated: true });
         }, 100);
@@ -175,11 +179,7 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
     }
 
     return (
-        <KeyboardAvoidingView
-            style={styles.keyboardContainer}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={0}
-        >
+        <View style={[styles.keyboardContainer, { paddingBottom: keyboardHeight }]}>
             <View style={[styles.header, { borderBottomColor: activeAccent + '22' }]}>
                 {onClose && (
                     <TouchableOpacity onPress={onClose} style={styles.headerBtn}>
@@ -191,15 +191,22 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
                     <TouchableOpacity
                         onPress={createNewConversation}
                         disabled={loading}
-                        style={[styles.newChatButton, { borderColor: activeAccent + '44', borderWidth: 1 }]}
+                        style={[styles.headerIconBtn, { borderColor: activeAccent + '33' }]}
                     >
-                        <Text style={[styles.newChatText, { color: activeAccent, fontFamily: MONO }]}>NEW_SESSION</Text>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                            <Line x1="12" y1="5" x2="12" y2="19" stroke={activeAccent} strokeWidth="1.8" strokeLinecap="round" />
+                            <Line x1="5" y1="12" x2="19" y2="12" stroke={activeAccent} strokeWidth="1.8" strokeLinecap="round" />
+                        </Svg>
                     </TouchableOpacity>
                     <TouchableOpacity
                         onPress={() => setDrawerOpen(true)}
-                        style={[styles.newChatButton, { borderColor: activeAccent + '44', borderWidth: 1 }]}
+                        style={[styles.headerIconBtn, { borderColor: activeAccent + '33' }]}
                     >
-                        <Text style={[styles.newChatText, { color: activeAccent, fontFamily: MONO }]}>☰</Text>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                            <Line x1="4" y1="7" x2="20" y2="7" stroke={activeAccent} strokeWidth="1.8" strokeLinecap="round" />
+                            <Line x1="4" y1="12" x2="20" y2="12" stroke={activeAccent} strokeWidth="1.8" strokeLinecap="round" />
+                            <Line x1="4" y1="17" x2="20" y2="17" stroke={activeAccent} strokeWidth="1.8" strokeLinecap="round" />
+                        </Svg>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -217,18 +224,19 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
                     style={styles.list}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
-                    onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                    keyboardShouldPersistTaps="handled"
                 >
                     {msgs.map((m) => (
                         <MessageBubble key={m.id} item={m} accent={activeAccent} />
                     ))}
 
                     {streamingText && (
-                        <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 16, marginBottom: 12 }}>
+                        <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
                             <View style={styles.bubbleWrapper}>
                                 <Text style={[styles.roleLabel, { color: activeAccent }]}>KITSUNAI_OS [STREAMING]</Text>
-                                <Text style={[styles.bubbleText, { fontFamily: MONO, fontSize: 13, color: '#DDD' }]}>
-                                    {streamingText}{getSafetyBuffer(streamingText, false)}
+                                <Text style={[styles.bubbleText, { fontFamily: MONO, fontSize: 13, color: '#DDD' }]}
+                                    numberOfLines={0}>
+                                    {streamingText}
                                 </Text>
                             </View>
                         </View>
@@ -257,6 +265,7 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
                     value={input}
                     onChangeText={(text) => {
                         setInput(text);
+                        inputRef.current = text;
                     }}
                     placeholder={recording ? 'LISTENING...' : 'Type here...'}
                     placeholderTextColor={recording ? '#ff4444' : '#444'}
@@ -269,25 +278,46 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
                 <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
                     {speaking ? (
                         <TouchableOpacity
-                            style={[styles.stopButton, { backgroundColor: activeAccent }]}
+                            style={[styles.micButton, { backgroundColor: activeAccent }]}
                             onPress={() => ai.stopSpeech()}
                         >
-                            <View style={styles.stopIcon} />
+                            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                                <Rect x="4" y="4" width="16" height="16" rx="3" fill="#000" />
+                            </Svg>
                         </TouchableOpacity>
                     ) : (
                         <TouchableOpacity
-                            style={[styles.micButton, recording && styles.micButtonActive, { borderColor: activeAccent + '44', borderWidth: 1 }]}
+                            style={[
+                                styles.micButton,
+                                { borderColor: recording ? '#ff4444' : activeAccent + '44', borderWidth: 1 },
+                                recording && { backgroundColor: '#ff444422' },
+                            ]}
                             onPress={handleMicPress}
                             disabled={loading}
                         >
-                            <Text style={[styles.micIcon, { color: activeAccent }]}>{recording ? '⏹' : '🎤'}</Text>
+                            {recording ? (
+                                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                                    <Rect x="5" y="5" width="14" height="14" rx="2" fill="#ff4444" />
+                                </Svg>
+                            ) : (
+                                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                                    <Rect x="9" y="2" width="6" height="12" rx="3" stroke={activeAccent} strokeWidth="1.8" />
+                                    <Path d="M5 10a7 7 0 0 0 14 0" stroke={activeAccent} strokeWidth="1.8" strokeLinecap="round" />
+                                    <Line x1="12" y1="17" x2="12" y2="21" stroke={activeAccent} strokeWidth="1.8" strokeLinecap="round" />
+                                    <Line x1="8" y1="21" x2="16" y2="21" stroke={activeAccent} strokeWidth="1.8" strokeLinecap="round" />
+                                </Svg>
+                            )}
                         </TouchableOpacity>
                     )}
                 </Animated.View>
 
                 <TouchableOpacity
-                    style={[styles.sendButton, { backgroundColor: activeAccent }, (!input.trim() || loading) && styles.sendDisabled]}
-                    onPress={send}
+                    style={[
+                        styles.sendButton,
+                        { backgroundColor: activeAccent },
+                        (!input.trim() || loading) && styles.sendDisabled,
+                    ]}
+                    onPress={() => send()}
                     disabled={!input.trim() || loading}
                 >
                     <Text style={[styles.sendText, { color: '#000' }]}>↑</Text>
@@ -300,30 +330,15 @@ export function ChatScreen({ onClose, ai }: { onClose?: () => void, ai: ReturnTy
                 onSelect={loadConversation}
                 onClose={() => setDrawerOpen(false)}
             />
-        </KeyboardAvoidingView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#000',
-    },
     keyboardContainer: {
         flex: 1,
         backgroundColor: '#000',
         width: SCREEN_WIDTH,
-    },
-    centre: {
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    loadingText: {
-        color: '#666',
-        marginTop: 16,
-        fontSize: 10,
-        letterSpacing: 4,
-        textAlign: 'center',
     },
     header: {
         paddingTop: 60,
@@ -346,16 +361,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-    },
-    newChatButton: {
-        backgroundColor: '#111',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    newChatText: {
-        fontSize: 10,
-        letterSpacing: 1,
     },
     emptyState: {
         flex: 1,
@@ -387,6 +392,7 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         borderRadius: 20,
         maxWidth: '85%',
+        flexShrink: 1,
     },
     roleLabel: {
         fontSize: 8,
@@ -424,6 +430,15 @@ const styles = StyleSheet.create({
         fontSize: 16,
         paddingLeft: 12,
     },
+    headerIconBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: '#0A0A0A',
+        borderWidth: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     inputRow: {
         width: SCREEN_WIDTH,
         flexDirection: 'row',
@@ -451,23 +466,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    micButtonActive: {
-        backgroundColor: '#ff444433',
-        borderColor: '#ff4444',
-    },
-    stopButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    stopIcon: {
-        width: 14,
-        height: 14,
-        backgroundColor: '#000',
-        borderRadius: 2,
-    },
     sendButton: {
         width: 48,
         height: 48,
@@ -482,8 +480,5 @@ const styles = StyleSheet.create({
     sendText: {
         fontSize: 20,
         fontWeight: 'bold',
-    },
-    micIcon: {
-        fontSize: 18,
     },
 });
