@@ -4,7 +4,7 @@ KitsunAI is a local, private AI assistant featuring a 3D animated companion. It 
 
 ## ⚠️ Photosensitivity Warning
 
-KitsunAI includes dynamic 3D visualizers and interface animations that react to audio frequencies. 
+KitsunAI includes dynamic 3D visualisers and interface animations that react to audio frequencies. 
 
 * **Visual Stimuli:** Certain themes or high-tempo audio patterns may produce rapid pulsing or flashing lights.
 * **Precaution:** Users with **photosensitive epilepsy** or other light sensitivities should exercise caution. If you experience dizziness, altered vision, eye or face twitching, or involuntary movements, **stop using the application immediately** and consult a medical professional.
