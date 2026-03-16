@@ -22,7 +22,7 @@ export const MODELS: ModelDef[] = [
         filename: 'gemma3-1b-q5l.gguf',
         format: 'gemma',
         speed: 'fast',
-        tag: 'FASTEST',
+        tag: 'DEFAULT',
     },
     {
         id: 'llama32-3b',
@@ -33,7 +33,6 @@ export const MODELS: ModelDef[] = [
         filename: 'llama32-3b-q5l.gguf',
         format: 'llama3',
         speed: 'fast',
-        tag: 'DEFAULT',
     },
     {
         id: 'qwen25-3b',
@@ -79,4 +78,4 @@ export const MODELS: ModelDef[] = [
     },
 ];
 
-export const DEFAULT_MODEL_ID = 'llama32-3b';
+export const DEFAULT_MODEL_ID = 'gemma3-1b';

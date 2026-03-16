@@ -4,7 +4,7 @@ KitsunAI is a local, private AI assistant featuring a 3D animated companion. It 
 
 ## Supported Models
 
-KitsunAI supports multiple models that can be downloaded and switched between in the app's settings. All models are Q5_K_L quantized (Q8_0 embed/output weights) for the best quality-to-size ratio on mobile.
+KitsunAI supports multiple models that can be downloaded and switched between in the app's settings. All models are Q5_K_L quantised (Q8_0 embed/output weights) for the best quality-to-size ratio on mobile.
 
 | Model | Size | Speed | Best for |
 |---|---|---|---|
@@ -15,15 +15,21 @@ KitsunAI supports multiple models that can be downloaded and switched between in
 | Gemma 3 4B | 2.99GB | ◎ Medium | Best overall quality |
 | Qwen 3 4B | 2.98GB | ◎ Medium | Latest benchmarks, top reasoning |
 
-Try the default model on first install is **Llama 3.2 3B**. All models are sourced from [bartowski on Hugging Face](https://huggingface.co/bartowski) and run entirely on-device with no internet required after download.
+Try the default model on first install is **Gemma 3 1B**. All models are sourced from [bartowski on Hugging Face](https://huggingface.co/bartowski) and run entirely on-device with no internet required after download.
+
+## Warnings
+
+> **⚠️ EPILEPSY WARNING ⚠️**
+> This application includes visualiser interfaces that react to audio. While previous strobing issues during chat interactions have been patched, please be aware that certain visualiser themes or audio patterns may still produce rapid flashing lights. Users with photosensitive epilepsy or other light sensitivities should use caution.
 
 ## Features
 
 - **Local AI**: Run LLMs locally on your Android device for maximum privacy.
 - **3D Companion**: Interactive animated fox companion that reacts to your voice and responses.
-- **Voice Interaction**: Integrated speech-to-text and text-to-speech for seamless voice conversations.
+- **Visualiser Themes**: Multiple distinct visualiser interfaces (e.g., Guardian Kitsune, Origami Spaniel, Kinetic Grid) to match your style.
+- **Voice Interaction**: Integrated speech-to-text and text-to-speech for seamless voice conversations, with support for custom system voices.
 - **Model Management**: Download, switch, and delete models directly from the settings screen.
-- **Customizable**: Adjust voice speed, system prompt, CPU threads, context size, and batch size.
+- **Customisable**: Adjust voice speed, system prompt, CPU threads, context size, and batch size.
 - **Conversation History**: Persistent chat history with the ability to create, switch, and delete conversations.
 
 ## Tech Stack

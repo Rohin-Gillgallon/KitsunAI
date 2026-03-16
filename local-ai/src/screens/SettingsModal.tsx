@@ -164,7 +164,7 @@ export function SettingsModal({ visible, onClose }: Props) {
                             Settings.setModelIdDownloaded(model.id, false);
                             if (selectedModelId === model.id) {
                                 const fallback = downloadedIds.find(id => id !== model.id);
-                                const newId = fallback ?? 'llama32-3b';
+                                const newId = fallback ?? 'gemma3-1b';
                                 setSelectedModelId(newId);
                                 Settings.setSelectedModelId(newId);
                                 await releaseModel();
