@@ -7,8 +7,8 @@ KitsunAI is a local, private AI assistant featuring a 3D animated companion. It 
 KitsunAI includes dynamic 3D visualisers and interface animations that react to audio frequencies. 
 
 * **Visual Stimuli:** Certain themes or high-tempo audio patterns may produce rapid pulsing or flashing lights.
+* **UI Stability:** While known issues regarding screen flickering during keyboard dismissal and chat interactions have been addressed, users should remain aware that rapid UI transitions are a core part of the experience.
 * **Precaution:** Users with **photosensitive epilepsy** or other light sensitivities should exercise caution. If you experience dizziness, altered vision, eye or face twitching, or involuntary movements, **stop using the application immediately** and consult a medical professional.
-* **UI Animations:** While interface transitions are optimized for smoothness, users sensitive to motion or screen flickering should be aware that rapid UI changes (such as keyboard dismissal or view switching) occur during normal use.
 
 ---
 
