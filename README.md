@@ -2,6 +2,16 @@
 
 KitsunAI is a local, private AI assistant featuring a 3D animated companion. It allows you to run Large Language Models (LLMs) directly on your device, ensuring your conversations stay private and secure.
 
+## ⚠️ Photosensitivity Warning
+
+KitsunAI includes dynamic 3D visualizers and interface animations that react to audio frequencies. 
+
+* **Visual Stimuli:** Certain themes or high-tempo audio patterns may produce rapid pulsing or flashing lights.
+* **Precaution:** Users with **photosensitive epilepsy** or other light sensitivities should exercise caution. If you experience dizziness, altered vision, eye or face twitching, or involuntary movements, **stop using the application immediately** and consult a medical professional.
+* **UI Animations:** While interface transitions are optimized for smoothness, users sensitive to motion or screen flickering should be aware that rapid UI changes (such as keyboard dismissal or view switching) occur during normal use.
+
+---
+
 ## Supported Models
 
 KitsunAI supports multiple models that can be downloaded and switched between in the app's settings. All models are Q5_K_L quantised (Q8_0 embed/output weights) for the best quality-to-size ratio on mobile.
@@ -15,12 +25,13 @@ KitsunAI supports multiple models that can be downloaded and switched between in
 | Gemma 3 4B | 2.99GB | ◎ Medium | Best overall quality |
 | Qwen 3 4B | 2.98GB | ◎ Medium | Latest benchmarks, top reasoning |
 
-Try the default model on first install is **Gemma 3 1B**. All models are sourced from [bartowski on Hugging Face](https://huggingface.co/bartowski) and run entirely on-device with no internet required after download.
+The default model on first install is **Gemma 3 1B**. All models are sourced from [bartowski on Hugging Face](https://huggingface.co/bartowski) and run entirely on-device with no internet required after download.
 
-## Warnings
+## Privacy & Security
 
-> **⚠️ EPILEPSY WARNING ⚠️**
-> This application includes visualiser interfaces that react to audio. While previous strobing issues during chat interactions have been patched, please be aware that certain visualiser themes or audio patterns may still produce rapid flashing lights. Users with photosensitive epilepsy or other light sensitivities should use caution.
+* **100% Local Inference:** Your chat data never leaves your device. Processing is handled by the local CPU/GPU via `llama.cpp`.
+* **No Analytics:** KitsunAI does not track your prompts, responses, or usage patterns.
+* **Offline Capability:** Once a model is downloaded, the app can function entirely in Airplane Mode.
 
 ## Features
 
@@ -36,7 +47,7 @@ Try the default model on first install is **Gemma 3 1B**. All models are sourced
 
 - **Framework**: [Expo](https://expo.dev/) / React Native
 - **AI Engine**: [llama.rn](https://github.com/Kudo/llama.rn) (local inference via llama.cpp)
-- **3D Graphics**: [Three.js](https://threejs.org/) / [expo-three](https://github.com/expo/expo-three) / [expo-gl](https://docs.expo.dev/versions/latest/sdk/gl-view/)
+- **3D Graphics**: [Three.js](https://threejs.org/) / [expo-three](https://github.com/expo-three) / [expo-gl](https://docs.expo.dev/versions/latest/sdk/gl-view/)
 - **UI & Animations**: [Reanimated](https://docs.swmansion.com/react-native-reanimated/)
 - **Database**: [Drizzle ORM](https://orm.drizzle.team/) with [Expo SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/)
 - **Storage**: [react-native-mmkv](https://github.com/mrousavy/mmkv) for settings and preferences
@@ -57,11 +68,7 @@ Fox v2 by Jake Blakeley [CC-BY] (https://creativecommons.org/licenses/by/3.0/) v
 - **Why this is required**:
   - Gradle 9 removed the `IBM_SEMERU` vendor constant, which caused the original error: `Class org.gradle.jvm.toolchain.JvmVendorSpec does not have member field 'org.gradle.jvm.toolchain.JvmVendorSpec IBM_SEMERU'`.
   - The wrapper now uses Gradle 8.13, which is compatible with the Android Gradle Plugin and avoids that error.
-  - Using GraalVM as the JDK causes `jlink` failures during `:llama.rn:compileDebugJavaWithJavac` (Gradle tries to transform `core-for-system-modules.jar` with `graalvm-23\bin\jlink.exe`). Switching to a standard JDK resolves this.
+  - Using GraalVM as the JDK causes `jlink` failures during `:llama.rn:compileDebugJavaWithJavac`. Switching to a standard JDK resolves this.
 
-Once a standard JDK is installed and `JAVA_HOME`/`PATH` are updated, run:
 ```bash
 pnpm expo run:android
-```
-
-from the `kitsunai` directory to build and run the Android app. Append `--variant release` for a production build.
